@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+  db:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    volumes:
+      - dbdata:/data/db
+
+volumes:
+  dbdata:

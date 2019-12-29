@@ -1,0 +1,7 @@
+.idea
+.gradle
+build
+
+local.env
+credentials.json
+tokens
