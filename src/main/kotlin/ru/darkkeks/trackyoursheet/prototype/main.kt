@@ -1,6 +1,5 @@
 package ru.darkkeks.trackyoursheet.prototype
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
@@ -9,6 +8,7 @@ import com.google.api.services.sheets.v4.Sheets
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoCredential
 import com.pengrad.telegrambot.model.request.ParseMode
+import com.pengrad.telegrambot.request.AnswerCallbackQuery
 import com.pengrad.telegrambot.request.SendMessage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.consumeEach
@@ -18,10 +18,8 @@ import org.kodein.di.Kodein
 import org.kodein.di.generic.bind
 import org.kodein.di.generic.instance
 import org.kodein.di.generic.singleton
-import org.litote.kmongo.Id
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
-import org.litote.kmongo.newId
 import org.litote.kmongo.reactivestreams.KMongo
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellTextModifyEvent
 import ru.darkkeks.trackyoursheet.prototype.sheet.CredentialsUtil
@@ -71,28 +69,6 @@ typealias UserId = Int
 typealias StateHolder = Pair<ChatId, UserId>
 
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
-open class CallbackButton(val _id: Id<CallbackButton> = newId()) {
-    val stringId
-        get() = _id.toString()
-}
-
-// TODO
-class StatelessButton : CallbackButton()
-
-open class GlobalStateButton : CallbackButton()
-
-
-class ButtonManager {
-    val buttons = mutableMapOf<String, CallbackButton>()
-
-    fun get(id: String) = buttons[id]
-
-    fun put(id: String, button: CallbackButton) {
-        buttons[id] = button
-    }
-}
-
 class Controller(kodein: Kodein) {
     val bot = CoroutineBot()
     val sheetApi: SheetApi by kodein.instance()
@@ -113,34 +89,45 @@ class Controller(kodein: Kodein) {
             when {
                 update.message() != null -> {
                     val message = update.message()
-                    val stateHolder = message.chat().id() to message.from().id()
-                    val state = userStates.computeIfAbsent(stateHolder) { DefaultState() }
-
-                    if (CommandContext.isCommand(message.text())) {
-                        state.handleCommand(CommandContext(this, message))
+                    val context = if (CommandContext.isCommand(message.text())) {
+                        CommandContext(this, message)
                     } else {
-                        state.handleMessage(NewMessageContext(this, message))
+                        NewMessageContext(this, message)
+                    }
+
+                    val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
+                    when (context) {
+                        is CommandContext -> state.handleCommand(context)
+                        else -> state.handleMessage(context)
                     }
                 }
                 update.callbackQuery() != null -> {
                     val callbackQuery = update.callbackQuery()
-                    val message = callbackQuery.message()
-                    val stateHolder = message.chat().id() to callbackQuery.from().id()
 
-                    val state = userStates.computeIfAbsent(stateHolder) { DefaultState() }
+                    val button = buttonManager.get(callbackQuery.data())
 
-                    when (val button = buttonManager.get(callbackQuery.data())) {
-                        is GlobalStateButton -> {
-                            val context = CallbackButtonContext(this, callbackQuery, button)
-                            state.handleCallback(context)
-                            if (!context.answered) {
-                                context.answerCallbackQuery()
+                    if (button == null) {
+                        println("Warning! Can't find callback button ${callbackQuery.data()}")
+                        bot.execute(AnswerCallbackQuery(callbackQuery.id()).text("Кнопка не найдена"))
+                    } else {
+                        val context = CallbackButtonContext(this, callbackQuery, button)
+
+                        when (button) {
+                            is GlobalStateButton -> {
+                                val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
+                                state.handleCallback(context)
+                            }
+                            is StatefulButton -> {
+                                button.state.handleButton(context)
+                            }
+                            else -> {
+                                context.answerCallbackQuery("Не получилось обработать кнопку :(")
                             }
                         }
-                        is StatelessButton ->
-                            println("Warning! Unsupported stateless button received!")
-                        else ->
-                            println("Warning! Unknown callback query received ${callbackQuery.data()}")
+
+                        if (!context.answered) {
+                            context.answerCallbackQuery()
+                        }
                     }
                 }
             }

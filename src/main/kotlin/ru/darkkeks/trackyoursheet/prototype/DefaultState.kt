@@ -1,9 +1,6 @@
 package ru.darkkeks.trackyoursheet.prototype
 
-import ru.darkkeks.trackyoursheet.prototype.telegram.CommandContext
-import ru.darkkeks.trackyoursheet.prototype.telegram.GlobalUserState
-import ru.darkkeks.trackyoursheet.prototype.telegram.UserActionContext
-import ru.darkkeks.trackyoursheet.prototype.telegram.handle
+import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
 class DefaultState : GlobalUserState() {
 
@@ -34,19 +31,13 @@ class DefaultState : GlobalUserState() {
                     "Тут пусто ;("
                 }
 
-                context.reply("Ваши ренжики:\n$rangeList")
+                context.reply("Ваши ренжики:\n\n$rangeList")
             }
             else -> return false
         }
         return true
     }
 
-    suspend fun startMessage(context: UserActionContext) = context.reply("""
-        Привет, я умею наблюдать за гугл-табличками. ${"\uD83E\uDD13"}
-        
-        Давай будем называть _ренжем_ (_ренж_, _ренжик_, в _ренже_, _ренжику_, от англ. _range_) диапазон не некотором листе в гугл таблице. 
-        Я не смог придумать название лучше, если есть идеи -- всегда можно написать @darkkeks.
-        
-        Сюда еще хелпы надо, напишите @lodthe чтобы добавил))0)).
-    """.trimIndent())
+    suspend fun startMessage(context: UserActionContext) = MainMenuState().send(context)
+
 }

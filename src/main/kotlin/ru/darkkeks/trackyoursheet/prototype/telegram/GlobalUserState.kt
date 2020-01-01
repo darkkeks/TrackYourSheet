@@ -1,7 +1,6 @@
 package ru.darkkeks.trackyoursheet.prototype.telegram
 
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton
-import ru.darkkeks.trackyoursheet.prototype.GlobalStateButton
 
 
 // TODO Persist user global state

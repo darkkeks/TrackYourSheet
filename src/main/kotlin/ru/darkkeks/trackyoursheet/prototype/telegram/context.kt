@@ -5,16 +5,22 @@ import com.pengrad.telegrambot.model.Chat
 import com.pengrad.telegrambot.model.Message
 import com.pengrad.telegrambot.model.User
 import com.pengrad.telegrambot.model.request.ForceReply
+import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup
 import com.pengrad.telegrambot.model.request.Keyboard
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
+import com.pengrad.telegrambot.request.EditMessageReplyMarkup
+import com.pengrad.telegrambot.request.EditMessageText
 import com.pengrad.telegrambot.request.SendMessage
 import com.pengrad.telegrambot.response.SendResponse
 import ru.darkkeks.trackyoursheet.prototype.Controller
-import ru.darkkeks.trackyoursheet.prototype.GlobalStateButton
 
 open class UserActionContext(val controller: Controller, val message: Message, val user: User) {
-    val userId: Int get() = user.id()
+    val userId: Int
+        get() = user.id()
+
+    val stateHolder
+        get() = message.chat().id() to user.id()
 
     val bot get() = controller.bot
 
@@ -62,7 +68,7 @@ open class UserActionContext(val controller: Controller, val message: Message, v
     fun isPrivate() = message.chat().type() == Chat.Type.Private
 
     fun changeState(state: GlobalUserState) {
-        controller.changeState(message.chat().id() to userId, state)
+        controller.changeState(stateHolder, state)
     }
 }
 
@@ -91,14 +97,30 @@ class CommandContext(controller: Controller, message: Message) : NewMessageConte
 
 class CallbackButtonContext(controller: Controller,
                             val callbackQuery: CallbackQuery,
-                            val button: GlobalStateButton) :
+                            val button: CallbackButton) :
         UserActionContext(controller, callbackQuery.message(), callbackQuery.from()) {
 
     var answered = false
 
+    suspend fun editMessage(text: String? = null,
+                            replyMarkup: InlineKeyboardMarkup? = null) {
+        when {
+            text != null -> {
+                val request = EditMessageText(message.chat(), message.messageId(), text)
+                if (replyMarkup != null) {
+                    request.replyMarkup(replyMarkup)
+                }
+                bot.execute(request)
+            }
+            replyMarkup != null -> {
+                bot.execute(EditMessageReplyMarkup(message.chat(), message.messageId()).replyMarkup(replyMarkup))
+            }
+        }
+    }
+
     suspend fun answerCallbackQuery(text: String? = null,
-                            showAlert: Boolean = false,
-                            cacheTime: Int? = null) {
+                                    showAlert: Boolean = false,
+                                    cacheTime: Int? = null) {
         val request = AnswerCallbackQuery(callbackQuery.id())
             .showAlert(showAlert)
         if (text != null) {
@@ -108,6 +130,7 @@ class CallbackButtonContext(controller: Controller,
             request.cacheTime(cacheTime)
         }
         bot.execute(request)
+
         answered = true
     }
 }
