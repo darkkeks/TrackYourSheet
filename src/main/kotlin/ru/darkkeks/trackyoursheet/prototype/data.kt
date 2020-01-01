@@ -9,6 +9,8 @@ import org.litote.kmongo.Id
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.eq
 import org.litote.kmongo.newId
+import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
+import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import java.time.Instant
 
 data class User(
@@ -24,7 +26,7 @@ data class PostTarget(
 
 data class TrackJob(
     val sheet: SheetData,
-    val range: String, // TODO Should be range, not string?
+    val range: CellRange,
     val interval: TrackInterval,
     val owner: Id<User>,
     val _id: Id<TrackJob> = newId()
@@ -43,7 +45,6 @@ abstract class TrackInterval
 data class PeriodTrackInterval(val periodSeconds: Int) : TrackInterval() {
     override fun toString() = "$periodSeconds секунд"
 }
-
 
 class SheetTrackDao(kodein: Kodein) {
     val database: CoroutineDatabase by kodein.instance()

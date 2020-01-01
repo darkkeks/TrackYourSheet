@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.telegram
 
 import com.pengrad.telegrambot.Callback
 import com.pengrad.telegrambot.TelegramBot
@@ -11,6 +11,7 @@ import com.pengrad.telegrambot.response.BaseResponse
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import ru.darkkeks.trackyoursheet.prototype.BOT_TOKEN
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -31,10 +32,15 @@ class CoroutineBot {
     }
 
     suspend fun <T : BaseRequest<T, R>, R : BaseResponse> execute(request: T): R {
+        val stackTrace = IOException().apply {
+            stackTrace = stackTrace.copyOfRange(1, stackTrace.size)
+        }
+
         return suspendCoroutine { continuation ->
-            bot.execute<T, R>(request, object : Callback<T, R> {
-                override fun onFailure(request: T, e: IOException) {
-                    continuation.resumeWithException(e)
+            bot.execute(request, object : Callback<T, R> {
+                override fun onFailure(request: T, e: IOException?) {
+                    stackTrace.initCause(e)
+                    continuation.resumeWithException(stackTrace)
                 }
 
                 override fun onResponse(request: T, response: R) {
@@ -43,12 +49,11 @@ class CoroutineBot {
                     } else {
                         val message = "${request.method} failed with error_code " +
                                 "${response.errorCode()} ${response.description()}"
-                        continuation.resumeWithException(TelegramException(message, response))
+                        stackTrace.initCause(TelegramException(message, response))
+                        continuation.resumeWithException(stackTrace)
                     }
                 }
             })
         }
     }
 }
-
-fun User.mention(text: String) = """[${text}](tg://user?id=${id()})"""

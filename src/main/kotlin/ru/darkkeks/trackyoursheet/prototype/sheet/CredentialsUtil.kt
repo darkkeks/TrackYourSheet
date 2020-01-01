@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.sheet
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
@@ -22,28 +22,19 @@ class CredentialsUtil(kodein: Kodein) {
     private val httpTransport: NetHttpTransport by kodein.instance()
 
     fun getCredential(): Credential {
-        val clientSecrets = GoogleClientSecrets.load(
-            jsonFactory,
-            File(credentialsFile).reader()
-        )
+        val clientSecrets = GoogleClientSecrets.load(jsonFactory, File(credentialsFile).reader())
+
         val flow = GoogleAuthorizationCodeFlow.Builder(
             httpTransport,
             jsonFactory,
             clientSecrets,
             Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY)
         )
-            .setDataStoreFactory(
-                FileDataStoreFactory(
-                    File(tokensDirectory)
-                )
-            )
+            .setDataStoreFactory(FileDataStoreFactory(File(tokensDirectory)))
             .setAccessType("offline")
             .build()
-        val receiver = LocalServerReceiver.Builder()
-            .setPort(8888).build()
-        return AuthorizationCodeInstalledApp(
-            flow,
-            receiver
-        ).authorize("user")
+
+        val receiver = LocalServerReceiver.Builder().setPort(8888).build()
+        return AuthorizationCodeInstalledApp(flow, receiver).authorize("user")
     }
 }

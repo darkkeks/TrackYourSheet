@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.sheet
 
 import com.google.api.services.sheets.v4.model.Sheet
 import com.google.api.services.sheets.v4.model.Spreadsheet

@@ -9,6 +9,10 @@ import kotlinx.coroutines.withTimeout
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
 import org.litote.kmongo.newId
+import ru.darkkeks.trackyoursheet.prototype.sheet.DataCompareService
+import ru.darkkeks.trackyoursheet.prototype.sheet.DataEvent
+import ru.darkkeks.trackyoursheet.prototype.sheet.InitialDataLoadEvent
+import ru.darkkeks.trackyoursheet.prototype.sheet.SheetApi
 import kotlin.system.measureTimeMillis
 
 // FIXME Не нравится мне эта реализация CoroutineScope, что то тут не так :thinking:
@@ -57,7 +61,7 @@ class SheetTracker(kodein: Kodein) : CoroutineScope by GlobalScope {
         val result = mutableListOf<DataEvent>()
         val time = measureTimeMillis {
             val data = withTimeout(5000) {
-                sheetApi.getRanges(job.sheet, listOf(job.range))
+                sheetApi.getRanges(job.sheet, listOf("${job.sheet.sheetName}!${job.range}"))
             }
 
             val oldData = trackDao.getLastData(job._id)

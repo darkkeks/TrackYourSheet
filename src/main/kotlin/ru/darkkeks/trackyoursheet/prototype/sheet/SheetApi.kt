@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.sheet
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.api.services.sheets.v4.Sheets
@@ -34,7 +34,7 @@ class SheetApi(kodein: Kodein) {
     }
 }
 
-data class SheetData(val id: String, val sheetId: Int) {
+data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "") {
 
     val url
         @JsonIgnore

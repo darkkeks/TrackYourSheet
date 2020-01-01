@@ -1,18 +1,15 @@
 package ru.darkkeks.trackyoursheet.prototype
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.Sheet
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoCredential
-import com.pengrad.telegrambot.model.Chat
-import com.pengrad.telegrambot.model.Message
-import com.pengrad.telegrambot.model.request.*
+import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.SendMessage
-import com.pengrad.telegrambot.response.SendResponse
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.collect
@@ -21,18 +18,27 @@ import org.kodein.di.Kodein
 import org.kodein.di.generic.bind
 import org.kodein.di.generic.instance
 import org.kodein.di.generic.singleton
+import org.litote.kmongo.Id
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
+import org.litote.kmongo.newId
 import org.litote.kmongo.reactivestreams.KMongo
+import ru.darkkeks.trackyoursheet.prototype.sheet.CellTextModifyEvent
+import ru.darkkeks.trackyoursheet.prototype.sheet.CredentialsUtil
+import ru.darkkeks.trackyoursheet.prototype.sheet.DataEvent
+import ru.darkkeks.trackyoursheet.prototype.sheet.SheetApi
+import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
 // FIXME env
-val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: throw IllegalStateException()
+val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: ""
 
 
 val kodein = Kodein {
     bind<NetHttpTransport>() with singleton { GoogleNetHttpTransport.newTrustedTransport() }
     bind<JsonFactory>() with singleton { JacksonFactory.getDefaultInstance() }
-    bind<CredentialsUtil>() with singleton { CredentialsUtil(kodein) }
+    bind<CredentialsUtil>() with singleton {
+        CredentialsUtil(kodein)
+    }
 
     bind<Sheets>() with singleton {
         val credentialsUtil: CredentialsUtil = instance()
@@ -64,248 +70,35 @@ typealias UserId = Int
 
 typealias StateHolder = Pair<ChatId, UserId>
 
-open class NewMessageContext(val controller: Controller, val message: Message) {
-    val userId: Int get() = message.from().id()
 
-    suspend fun reply(text: String,
-                      disableWebPagePreview: Boolean = true,
-                      replyMarkup: Keyboard? = null,
-                      parseMode: ParseMode? = ParseMode.Markdown,
-                      disableNotification: Boolean = false): SendResponse {
-        return controller.bot.execute(SendMessage(message.chat().id(), text)
-                                          .disableWebPagePreview(disableWebPagePreview)
-                                          .replyMarkup(replyMarkup)
-                                          .parseMode(parseMode)
-                                          .disableNotification(disableNotification))
-    }
-
-    suspend fun forceReply(text: String,
-        disableWebPagePreview: Boolean = false,
-        replyMarkup: Keyboard? = null,
-        parseMode: ParseMode? = ParseMode.Markdown,
-        disableNotification: Boolean = false
-    ): SendResponse {
-        val chat = message.chat()
-        val request = SendMessage(chat.id(), text)
-            .disableWebPagePreview(disableWebPagePreview)
-            .replyMarkup(replyMarkup)
-            .parseMode(parseMode)
-            .disableNotification(disableNotification)
-
-        if (!isPrivate()) {
-            request.replyToMessageId(message.messageId())
-            if (replyMarkup == null) {
-                request.replyMarkup(ForceReply(true))
-            }
-        }
-
-        return controller.bot.execute(request)
-    }
-
-    fun isPrivate() = message.chat().type() == Chat.Type.Private
-
-    fun changeState(state: GlobalUserState) {
-        controller.changeState(message.chat().id() to message.from().id(), state)
-    }
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+open class CallbackButton(val _id: Id<CallbackButton> = newId()) {
+    val stringId
+        get() = _id.toString()
 }
 
-class CommandContext(controller: Controller, message: Message) :
-        NewMessageContext(controller, message) {
-    val command: String
-    val arguments: List<String>
+// TODO
+class StatelessButton : CallbackButton()
 
-    init {
-        require(isCommand(message.text()))
+open class GlobalStateButton : CallbackButton()
 
-        val text = message.text().substring(1)
-        val parts = text.split(" ")
-        command = parts[0]
-        arguments = parts.subList(1, parts.size)
-    }
 
-    companion object {
-        fun isCommand(text: String?) = text != null && text.trim().let { trimmed ->
-            trimmed.startsWith("/") && !trimmed[1].isWhitespace()
-        }
+class ButtonManager {
+    val buttons = mutableMapOf<String, CallbackButton>()
+
+    fun get(id: String) = buttons[id]
+
+    fun put(id: String, button: CallbackButton) {
+        buttons[id] = button
     }
 }
-
-inline fun <T> GlobalUserState.handle(context: T, block: (T) -> Unit): Boolean {
-    block(context)
-    return true
-}
-
-abstract class GlobalUserState(val parentState: GlobalUserState? = null) {
-    open suspend fun handleMessage(context: NewMessageContext): Boolean = false
-
-    open suspend fun handleCommand(context: CommandContext): Boolean = false
-}
-
-class DefaultState : GlobalUserState() {
-    override suspend fun handleMessage(context: NewMessageContext) = handle(context) {
-        startMessage(context)
-    }
-
-    override suspend fun handleCommand(context: CommandContext): Boolean {
-        when (context.command) {
-            "start" -> startMessage(context)
-            "help" -> startMessage(context)
-            "new_range" -> {
-                val state = NewRangeState()
-                context.changeState(state)
-                state.initiate(context)
-            }
-            "list_ranges" -> {
-                val dao = context.controller.sheetDao
-                val user = dao.getOrCreateUser(context.userId)
-
-                val ranges = dao.getUserJobs(user._id)
-
-                val rangeList = if (ranges.isNotEmpty()) {
-                    ranges.joinToString("\n") {
-                        """[${it.range}](${it.sheet.urlTo(it.range)}) с интервалом ${it.interval}"""
-                    }
-                } else {
-                    "Тут пусто ;("
-                }
-
-                context.reply("""
-                    Ваши ренжики:
-                    $rangeList
-                """.trimIndent())
-            }
-            else -> return false
-        }
-        return true
-    }
-
-    suspend fun startMessage(context: NewMessageContext) = context.reply("""
-        Привет, я умею наблюдать за гугл-табличками. ${"\uD83E\uDD13"}
-        
-        Давай будем называть _ренжем_ (_ренж_, _ренжик_, в _ренже_, _ренжику_, от англ. _range_) диапазон не некотором листе в гугл таблице. 
-        Я не смог придумать название лучше, если есть идеи -- всегда можно написать @darkkeks.
-        
-        Сюда еще хелпы надо, напишите @lodthe чтобы добавил))0)).
-    """.trimIndent())
-}
-
-class NewRangeState : GlobalUserState(DefaultState()) {
-
-    var spreadsheetId: String? = null
-    var sheet: Sheet? = null
-    var range: CellRange? = null
-
-    suspend fun initiate(context: NewMessageContext) {
-        context.forceReply("""
-            Окей, ща создадим, сейчас мне от тебя нужна ссылка на табличку.
-
-            Можешь сразу дать ссылку на нужный ренж (выделить в гугл табличке -> пкм -> получить ссылку на этот диапазон).
-            
-            Либо просто ссылку на нужную таблчику/лист.
-
-            Выглядит она вот так:
-            ```https://docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-asdfghjklasdfdsaf/edit#gid=13371488228&range=A1:Z22```
-        """.trimIndent())
-    }
-
-    suspend fun errorMessage(context: NewMessageContext) = context.forceReply("""
-        Это не ссылка :(
-        
-        Чтобы отменить создание ренжика можно написать /cancel или нажать на кнопку ниже.
-    """.trimIndent())
-
-    override suspend fun handleMessage(context: NewMessageContext) = handle(context) {
-        val text = context.message.text()
-
-        if (text == null) {
-            errorMessage(context)
-            return@handle
-        }
-
-        val match = SheetData.fromUrl(text)
-        if (match == null) {
-            errorMessage(context)
-            return@handle
-        }
-
-        val (id, arguments) = match
-        spreadsheetId = id
-
-        val sheets = context.controller.sheetApi.getSheets(id)
-
-        if ("gid" in arguments) {
-            sheet = sheets.find {
-                it.properties.sheetId.toString() == arguments["gid"]
-            }
-        }
-
-        if (sheet != null && "range" in arguments) {
-            val rangeString = arguments.getValue("range")
-            if (CellRange.isRange(rangeString)) {
-                range = CellRange.fromString(rangeString)
-            }
-        }
-
-        val finalSheet = sheet
-        when {
-            finalSheet == null -> {
-                val keyboard = InlineKeyboardMarkup(*sheets.map {
-                    arrayOf(InlineKeyboardButton(it.properties.title ?: "Без названия")
-                                .callbackData("Тут коллбек))"))
-                }.toTypedArray())
-
-                context.reply("""
-                    Вижу [табличку](${SheetData(id, -1).url}), теперь надо выбрать один из листов. 
-                    Либо можешь ответить мне ренжем с листом, вида `Лист 1!A1:Z13`.
-                """.trimIndent(), replyMarkup = keyboard)
-            }
-            range == null -> {
-                context.forceReply("""
-                    Вижу табличку и лист, осталось указать какой ренж трекать. Напиши вот в таком формате: `A2:BE26`.
-                """.trimIndent())
-            }
-            else -> {
-                val dao = context.controller.sheetDao
-
-                val user = dao.getOrCreateUser(context.userId)
-
-                val trackJob = TrackJob(
-                    SheetData(id, finalSheet.properties.sheetId),
-                    "${finalSheet.properties.title}!$range",
-                    PeriodTrackInterval(10),
-                    user._id
-                )
-                dao.saveJob(trackJob)
-
-                context.controller.addJob(trackJob)
-
-                context.changeState(DefaultState())
-
-                context.reply("""
-                    Готово, буду трекать ренж [$range](${sheet}) на листе `${finalSheet.properties.title}`.
-                """.trimIndent())
-            }
-        }
-    }
-
-    override suspend fun handleCommand(context: CommandContext): Boolean {
-        when (context.command) {
-            "cancel" -> {
-                val state = DefaultState()
-                state.startMessage(context)
-                context.changeState(state)
-            }
-            else -> return false
-        }
-        return true
-    }
-}
-
 
 class Controller(kodein: Kodein) {
     val bot = CoroutineBot()
     val sheetApi: SheetApi by kodein.instance()
     val sheetDao: SheetTrackDao by kodein.instance()
+
+    val buttonManager = ButtonManager()
 
     private val tracker = SheetTracker(kodein)
 
@@ -321,13 +114,33 @@ class Controller(kodein: Kodein) {
                 update.message() != null -> {
                     val message = update.message()
                     val stateHolder = message.chat().id() to message.from().id()
-
                     val state = userStates.computeIfAbsent(stateHolder) { DefaultState() }
 
                     if (CommandContext.isCommand(message.text())) {
                         state.handleCommand(CommandContext(this, message))
                     } else {
                         state.handleMessage(NewMessageContext(this, message))
+                    }
+                }
+                update.callbackQuery() != null -> {
+                    val callbackQuery = update.callbackQuery()
+                    val message = callbackQuery.message()
+                    val stateHolder = message.chat().id() to callbackQuery.from().id()
+
+                    val state = userStates.computeIfAbsent(stateHolder) { DefaultState() }
+
+                    when (val button = buttonManager.get(callbackQuery.data())) {
+                        is GlobalStateButton -> {
+                            val context = CallbackButtonContext(this, callbackQuery, button)
+                            state.handleCallback(context)
+                            if (!context.answered) {
+                                context.answerCallbackQuery()
+                            }
+                        }
+                        is StatelessButton ->
+                            println("Warning! Unsupported stateless button received!")
+                        else ->
+                            println("Warning! Unknown callback query received ${callbackQuery.data()}")
                     }
                 }
             }
@@ -340,9 +153,7 @@ class Controller(kodein: Kodein) {
 
     private suspend fun preloadJobs() {
         sheetDao.getAllJobs().forEach { job ->
-            tracker.addJob(job).consumeEach { event ->
-                handleEvent(job, event)
-            }
+            addJob(job)
         }
     }
 
@@ -375,7 +186,8 @@ class Controller(kodein: Kodein) {
     }
 
     fun addJob(trackJob: TrackJob) {
-        GlobalScope.launch { // FIXME оно тут надо вообще?
+        GlobalScope.launch {
+            // FIXME оно тут надо вообще?
             tracker.addJob(trackJob).consumeEach { event ->
                 handleEvent(trackJob, event)
             }
