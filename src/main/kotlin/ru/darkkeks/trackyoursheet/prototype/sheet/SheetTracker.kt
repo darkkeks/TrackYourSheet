@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.sheet
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
@@ -9,10 +9,10 @@ import kotlinx.coroutines.withTimeout
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
 import org.litote.kmongo.newId
-import ru.darkkeks.trackyoursheet.prototype.sheet.DataCompareService
-import ru.darkkeks.trackyoursheet.prototype.sheet.DataEvent
-import ru.darkkeks.trackyoursheet.prototype.sheet.InitialDataLoadEvent
-import ru.darkkeks.trackyoursheet.prototype.sheet.SheetApi
+import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
+import ru.darkkeks.trackyoursheet.prototype.RangeData
+import ru.darkkeks.trackyoursheet.prototype.SheetTrackDao
+import ru.darkkeks.trackyoursheet.prototype.TrackJob
 import kotlin.system.measureTimeMillis
 
 // FIXME Не нравится мне эта реализация CoroutineScope, что то тут не так :thinking:
@@ -65,7 +65,10 @@ class SheetTracker(kodein: Kodein) : CoroutineScope by GlobalScope {
             }
 
             val oldData = trackDao.getLastData(job._id)
-            val newData = RangeData(data, job._id, _id = oldData?._id ?: newId())
+            val newData = RangeData(data,
+                                                                                            job._id,
+                                                                                            _id = oldData?._id
+                                                                                                ?: newId())
 
             if (oldData == null) {
                 result.add(InitialDataLoadEvent(data))

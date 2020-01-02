@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.states
 
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 

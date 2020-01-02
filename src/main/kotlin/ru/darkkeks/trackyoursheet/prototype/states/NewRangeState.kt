@@ -1,7 +1,9 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.prototype.states
 
 import com.google.api.services.sheets.v4.model.Sheet
 import com.pengrad.telegrambot.request.EditMessageReplyMarkup
+import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
+import ru.darkkeks.trackyoursheet.prototype.TrackJob
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
@@ -67,7 +69,7 @@ class NewRangeState : GlobalUserState(DefaultState()) {
                 """.trimIndent())
             } else {
                 context.reply("""
-                    Вижу [табличку](${SheetData(id, 0).url}), теперь надо выбрать один из листов.
+                    Вижу [табличку](${SheetData(id, 0).sheetUrl}), теперь надо выбрать один из листов.
                 """.trimIndent(), replyMarkup = createSheetSelectKeyboard(sheets, context))
             }
         } else if (spreadsheetId == null || sheet == null) {
@@ -149,7 +151,8 @@ class NewRangeState : GlobalUserState(DefaultState()) {
 
     private fun createSheetSelectKeyboard(sheets: List<Sheet>, context: UserActionContext) = buildInlineKeyboard {
         sheets.forEach {
-            row(button(it.properties.title, context, SheetSelectButton(it.properties.sheetId)))
+            row(button(it.properties.title, context,
+                       SheetSelectButton(it.properties.sheetId)))
         }
     }
 

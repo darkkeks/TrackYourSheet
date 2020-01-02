@@ -71,6 +71,8 @@ class SheetTrackDao(kodein: Kodein) {
         return jobs.find(TrackJob::owner eq id).toList()
     }
 
+    suspend fun getJob(id: Id<TrackJob>) = jobs.findOneById(ObjectId(id.toString()))
+
     suspend fun getAllJobs() = jobs.find().toList()
 
     suspend fun getOrCreateUser(userId: Int): User {

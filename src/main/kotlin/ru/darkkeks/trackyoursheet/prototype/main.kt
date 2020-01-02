@@ -21,10 +21,8 @@ import org.kodein.di.generic.singleton
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
-import ru.darkkeks.trackyoursheet.prototype.sheet.CellTextModifyEvent
-import ru.darkkeks.trackyoursheet.prototype.sheet.CredentialsUtil
-import ru.darkkeks.trackyoursheet.prototype.sheet.DataEvent
-import ru.darkkeks.trackyoursheet.prototype.sheet.SheetApi
+import ru.darkkeks.trackyoursheet.prototype.sheet.*
+import ru.darkkeks.trackyoursheet.prototype.states.DefaultState
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
 // FIXME env
@@ -151,7 +149,7 @@ class Controller(kodein: Kodein) {
             is CellTextModifyEvent -> {
                 val modifyMessage: (CellTextModifyEvent) -> String = { event ->
                     """
-                        В [табличке](${job.sheet.url}) значение изменилось в [клетке ${event.cell}](${job.sheet.urlTo(
+                        В [табличке](${job.sheet.sheetUrl}) значение изменилось в [клетке ${event.cell}](${job.sheet.urlTo(
                         event.cell
                     )}):
                         Старое:

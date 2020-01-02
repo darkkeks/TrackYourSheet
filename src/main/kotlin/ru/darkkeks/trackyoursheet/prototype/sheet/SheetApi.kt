@@ -15,6 +15,14 @@ import kotlin.math.min
 class SheetApi(kodein: Kodein) {
     private val sheets: Sheets by kodein.instance()
 
+    suspend fun getSheet(sheet: SheetData): Spreadsheet {
+        return withContext(Dispatchers.IO) {
+            sheets.spreadsheets().get(sheet.id)
+                .setIncludeGridData(false)
+                .execute()
+        }
+    }
+
     suspend fun getRanges(sheet: SheetData, ranges: List<String> = listOf()): Spreadsheet {
         return withContext(Dispatchers.IO) {
             sheets.spreadsheets().get(sheet.id)
@@ -38,11 +46,15 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
 
     val url
         @JsonIgnore
-        get() = "https://docs.google.com/spreadsheets/d/${id}#gid=${sheetId}"
+        get() = "https://docs.google.com/spreadsheets/d/${id}"
 
-    fun urlTo(cell: Cell) = "${url}&range=$cell"
-    fun urlTo(value: String) = "${url}&range=$value"
-    fun urlTo(range: CellRange) = "${url}&range=$range"
+    val sheetUrl
+        @JsonIgnore
+        get() = "${url}#gid=${sheetId}"
+
+    fun urlTo(cell: Cell) = "${sheetUrl}&range=$cell"
+    fun urlTo(value: String) = "${sheetUrl}&range=$value"
+    fun urlTo(range: CellRange) = "${sheetUrl}&range=$range"
 
     companion object {
         /**

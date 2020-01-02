@@ -103,10 +103,12 @@ class CallbackButtonContext(controller: Controller,
     var answered = false
 
     suspend fun editMessage(text: String? = null,
-                            replyMarkup: InlineKeyboardMarkup? = null) {
+                            replyMarkup: InlineKeyboardMarkup? = null,
+                            parseMode: ParseMode = ParseMode.Markdown) {
         when {
             text != null -> {
-                val request = EditMessageText(message.chat(), message.messageId(), text)
+                val request = EditMessageText(message.chat().id(), message.messageId(), text)
+                    .parseMode(parseMode)
                 if (replyMarkup != null) {
                     request.replyMarkup(replyMarkup)
                 }
