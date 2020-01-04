@@ -9,8 +9,7 @@ class MainMenuState : MessageState() {
     class ListRangesButton(state: MessageState) : StatefulButton(state)
     class SettingsButton(state: MessageState) : StatefulButton(state)
 
-    override suspend fun draw(context: UserActionContext) =
-        MessageRender("""
+    override suspend fun draw(context: UserActionContext) = MessageRender("""
         Привет, я умею наблюдать за гугл-табличками. ${"\uD83E\uDD13"}
         
         Давай будем называть _ренжем_ (_ренж_, _ренжик_, в _ренже_, _ренжику_, от англ. _range_) диапазон не некотором листе в гугл таблице. 
@@ -18,10 +17,10 @@ class MainMenuState : MessageState() {
         
         Сюда еще хелпы надо, напишите @lodthe чтобы добавил))0)).
     """.trimIndent(), buildInlineKeyboard {
-            row(button("*️⃣ Нам нужно больше ренжиков", CreateNewRangeButton(this@MainMenuState)))
-            row(button("\uD83D\uDCDD Ренжики мои любимые", ListRangesButton(this@MainMenuState)))
-            row(button("⚙️Настроечкикикики", SettingsButton(this@MainMenuState)))
-        })
+        row(button("*️⃣ Нам нужно больше ренжиков", CreateNewRangeButton(this@MainMenuState)))
+        row(button("\uD83D\uDCDD Ренжики мои любимые", ListRangesButton(this@MainMenuState)))
+        row(button("⚙️Настроечкикикики", SettingsButton(this@MainMenuState)))
+    })
 
     override suspend fun handleButton(context: CallbackButtonContext) {
         when (context.button) {
@@ -47,21 +46,16 @@ class RangeListState : MessageState() {
         val ranges = context.controller.sheetDao.getUserJobs(user._id)
 
         return if (ranges.isEmpty()) {
-            MessageRender("У вас нету ренжей \uD83D\uDE1E",
-                                                                                           buildInlineKeyboard {
-                                                                                               row(goBackButton())
-                                                                                           })
+            MessageRender("У вас нету ренжей \uD83D\uDE1E", buildInlineKeyboard {
+                row(goBackButton())
+            })
         } else {
-            MessageRender("Ваши ренжи:",
-                                                                                           buildInlineKeyboard {
-                                                                                               for (range in ranges) {
-                                                                                                   row(button("${range.sheet.sheetName}!${range.range}",
-                                                                                                              RangeButton(
-                                                                                                                  range._id,
-                                                                                                                  this@RangeListState)))
-                                                                                               }
-                                                                                               row(goBackButton())
-                                                                                           })
+            MessageRender("Ваши ренжи:", buildInlineKeyboard {
+                for (range in ranges) {
+                    row(button("${range.sheet.sheetName}!${range.range}", RangeButton(range._id, this@RangeListState)))
+                }
+                row(goBackButton())
+            })
         }
     }
 
@@ -70,8 +64,7 @@ class RangeListState : MessageState() {
     override suspend fun handleButton(context: CallbackButtonContext) {
         when (context.button) {
             is GoBackButton -> changeState(MainMenuState(), context)
-            is RangeButton -> changeState(RangeMenuState(
-                context.button.range), context)
+            is RangeButton -> changeState(RangeMenuState(context.button.range), context)
         }
     }
 }
@@ -82,10 +75,9 @@ class RangeMenuState(private val rangeId: Id<TrackJob>) : MessageState() {
     override suspend fun draw(context: UserActionContext): MessageRender {
         // TODO Нормальная ошибка при исчезновении ренжика
         val range = context.controller.sheetDao.getJob(rangeId)
-            ?: return MessageRender("Ренжик не найден \uD83D\uDE22",
-                                                                                                     buildInlineKeyboard {
-                                                                                                         row(goBackButton())
-                                                                                                     })
+            ?: return MessageRender("Ренжик не найден \uD83D\uDE22", buildInlineKeyboard {
+                row(goBackButton())
+            })
         val spreadsheet = context.controller.sheetApi.getSheet(range.sheet)
         return MessageRender("""
             Инфа о ренжике:

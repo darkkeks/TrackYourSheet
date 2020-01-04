@@ -20,7 +20,7 @@ import kotlin.coroutines.suspendCoroutine
 class CoroutineBot {
     private val bot: TelegramBot = TelegramBot(BOT_TOKEN)
 
-    suspend fun run(): Flow<Update> = callbackFlow {
+    fun run(): Flow<Update> = callbackFlow {
         bot.setUpdatesListener { updates ->
             updates.forEach { update ->
                 offer(update)

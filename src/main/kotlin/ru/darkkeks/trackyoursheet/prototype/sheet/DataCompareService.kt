@@ -30,8 +30,7 @@ class DataCompareService {
     private fun compareGrids(sheet: Sheet, old: GridData, new: GridData, block: EventListener) {
         require(old.rowData.size == new.rowData.size)
 
-        val startCell =
-            Cell(new.startRow, new.startColumn)
+        val startCell = Cell(new.startRow, new.startColumn)
         for (i in 0 until new.rowData.size) {
             val oRow = old.rowData[i].getValues()
             val nRow = new.rowData[i].getValues()

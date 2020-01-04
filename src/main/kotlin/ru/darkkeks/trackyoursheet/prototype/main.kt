@@ -10,7 +10,8 @@ import com.mongodb.MongoCredential
 import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
 import com.pengrad.telegrambot.request.SendMessage
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -25,7 +26,6 @@ import ru.darkkeks.trackyoursheet.prototype.sheet.*
 import ru.darkkeks.trackyoursheet.prototype.states.DefaultState
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
-// FIXME env
 val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: ""
 
 
@@ -73,6 +73,8 @@ class Controller(kodein: Kodein) {
     val sheetDao: SheetTrackDao by kodein.instance()
 
     val buttonManager = ButtonManager()
+
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     private val tracker = SheetTracker(kodein)
 
@@ -171,7 +173,7 @@ class Controller(kodein: Kodein) {
     }
 
     fun addJob(trackJob: TrackJob) {
-        GlobalScope.launch {
+        scope.launch {
             // FIXME оно тут надо вообще?
             tracker.addJob(trackJob).consumeEach { event ->
                 handleEvent(trackJob, event)
