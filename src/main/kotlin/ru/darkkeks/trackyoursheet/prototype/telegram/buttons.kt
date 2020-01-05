@@ -1,14 +1,17 @@
 package ru.darkkeks.trackyoursheet.prototype.telegram
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
+import ru.darkkeks.trackyoursheet.prototype.SheetTrackDao
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 open class CallbackButton(val _id: Id<CallbackButton> = newId()) {
     val stringId
+        @JsonIgnore
         get() = _id.toString()
 }
 
@@ -19,6 +22,7 @@ open class GlobalStateButton : CallbackButton()
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 abstract class MessageState {
 
+    @JsonIgnore
     private val createdButtons = mutableListOf<StatefulButton>()
 
     fun button(text: String, button: StatefulButton): InlineKeyboardButton {
@@ -30,9 +34,9 @@ abstract class MessageState {
 
     abstract suspend fun handleButton(context: CallbackButtonContext)
 
-    private fun persistButtons(buttonManager: ButtonManager) {
+    private suspend fun persistButtons(sheetDao: SheetTrackDao) {
         createdButtons.forEach {
-            buttonManager.put(it.stringId, it)
+            sheetDao.saveButton(it)
         }
         createdButtons.clear()
     }
@@ -40,27 +44,16 @@ abstract class MessageState {
     suspend fun send(context: UserActionContext) {
         val render = draw(context)
         context.reply(render.text, replyMarkup = render.keyboard)
-        persistButtons(context.controller.buttonManager)
+        persistButtons(context.controller.sheetDao)
     }
 
     suspend fun changeState(newState: MessageState, context: CallbackButtonContext) {
         val render = newState.draw(context)
         context.editMessage(render.text, render.keyboard)
-        newState.persistButtons(context.controller.buttonManager)
+        newState.persistButtons(context.controller.sheetDao)
     }
 
 }
 
 
 data class MessageRender(val text: String, val keyboard: InlineKeyboardMarkup)
-
-// TODO Persist buttons
-class ButtonManager {
-    private val buttons = mutableMapOf<String, CallbackButton>()
-
-    fun get(id: String) = buttons[id]
-
-    fun put(id: String, button: CallbackButton) {
-        buttons[id] = button
-    }
-}

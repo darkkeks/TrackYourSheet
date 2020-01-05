@@ -18,8 +18,8 @@ abstract class GlobalUserState(private val parentState: GlobalUserState? = null)
         }
     }
 
-    fun button(text: String, context: UserActionContext, button: GlobalStateButton): InlineKeyboardButton {
-        context.controller.buttonManager.put(button.stringId, button)
+    suspend fun button(text: String, context: UserActionContext, button: GlobalStateButton): InlineKeyboardButton {
+        context.controller.sheetDao.saveButton(button)
         return InlineKeyboardButton(text).callbackData(button.stringId)
     }
 }

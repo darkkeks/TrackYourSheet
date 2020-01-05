@@ -29,7 +29,7 @@ class InlineKeyboardBuilder {
     }
 }
 
-fun buildInlineKeyboard(block: InlineKeyboardBuilder.() -> Unit): InlineKeyboardMarkup {
+inline fun buildInlineKeyboard(block: InlineKeyboardBuilder.() -> Unit): InlineKeyboardMarkup {
     val keyboard = InlineKeyboardBuilder()
     keyboard.block()
     return keyboard.build()

@@ -5,6 +5,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
+import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
 import ru.darkkeks.trackyoursheet.prototype.RangeData
@@ -22,12 +23,12 @@ class SheetTracker(kodein: Kodein) {
 
     private val trackDao: SheetTrackDao by kodein.instance()
 
-    private val jobs: MutableMap<TrackJob, ReceiveChannel<DataEvent>> = mutableMapOf()
+    private val jobs: MutableMap<Id<TrackJob>, ReceiveChannel<DataEvent>> = mutableMapOf()
 
     private val dataCompareService = DataCompareService()
 
     fun addJob(trackJob: TrackJob): ReceiveChannel<DataEvent> {
-        require(!jobs.contains(trackJob)) {
+        require(!jobs.contains(trackJob._id)) {
             "Job is already being tracked"
         }
 
@@ -38,44 +39,40 @@ class SheetTracker(kodein: Kodein) {
                         scope.launch {
                             runJob(trackJob).forEach { send(it) }
                         }
-                        delay(Duration.ofSeconds(trackJob.interval.periodSeconds.toLong()).toMillis())
+                        delay(trackJob.interval.asDuration().toMillis())
                     }
                 }
                 else -> throw IllegalArgumentException("Unsupported time interval ${trackJob.interval}")
             }
         }
 
-        jobs[trackJob] = channel
+        jobs[trackJob._id] = channel
         return channel
     }
 
     fun removeJob(trackJob: TrackJob) {
-        jobs.remove(trackJob)?.cancel()
+        jobs.remove(trackJob._id)?.cancel()
     }
 
     private suspend fun runJob(job: TrackJob): List<DataEvent> {
         val result = mutableListOf<DataEvent>()
-        val time = measureTimeMillis {
-            val data = withTimeout(5000) {
-                sheetApi.getRanges(job.sheet, listOf("${job.sheet.sheetName}!${job.range}"))
-            }
-
-            val oldData = trackDao.getLastData(job._id)
-            val newData = RangeData(data, job._id, _id = oldData?._id ?: newId())
-
-            if (oldData == null) {
-                result.add(InitialDataLoadEvent(data))
-            } else {
-                dataCompareService.compare(oldData, newData) { event ->
-                    // FIXME Кто нибудь расскажите мне как это делать нормально без листа :D
-                    result.add(event)
-                }
-            }
-
-            trackDao.saveData(newData)
+        val data = withTimeout(5000) {
+            sheetApi.getRanges(job.sheet, listOf("${job.sheet.sheetName}!${job.range}"))
         }
 
-        println("Spent $time millis processing track job ${job._id}")
+        val oldData = trackDao.getLastData(job._id)
+        val newData = RangeData(data, job._id, _id = oldData?._id ?: newId())
+
+        if (oldData == null) {
+            result.add(InitialDataLoadEvent(data))
+        } else {
+            dataCompareService.compare(oldData, newData) { event ->
+                // FIXME Кто нибудь расскажите мне как это делать нормально без листа :D
+                result.add(event)
+            }
+        }
+
+        trackDao.saveData(newData)
 
         return result
     }

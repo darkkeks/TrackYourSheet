@@ -72,8 +72,6 @@ class Controller(kodein: Kodein) {
     val sheetApi: SheetApi by kodein.instance()
     val sheetDao: SheetTrackDao by kodein.instance()
 
-    val buttonManager = ButtonManager()
-
     private val scope = CoroutineScope(Dispatchers.Default)
 
     private val tracker = SheetTracker(kodein)
@@ -84,8 +82,6 @@ class Controller(kodein: Kodein) {
         preloadJobs()
 
         bot.run().collect { update ->
-            println(update)
-
             when {
                 update.message() != null -> {
                     val message = update.message()
@@ -104,7 +100,7 @@ class Controller(kodein: Kodein) {
                 update.callbackQuery() != null -> {
                     val callbackQuery = update.callbackQuery()
 
-                    val button = buttonManager.get(callbackQuery.data())
+                    val button = sheetDao.getButton(callbackQuery.data())
 
                     if (button == null) {
                         println("Warning! Can't find callback button ${callbackQuery.data()}")
@@ -140,7 +136,9 @@ class Controller(kodein: Kodein) {
 
     private suspend fun preloadJobs() {
         sheetDao.getAllJobs().forEach { job ->
-            addJob(job)
+            if (job.enabled) {
+                addJob(job)
+            }
         }
     }
 
@@ -151,9 +149,7 @@ class Controller(kodein: Kodein) {
             is CellTextModifyEvent -> {
                 val modifyMessage: (CellTextModifyEvent) -> String = { event ->
                     """
-                        В [табличке](${job.sheet.sheetUrl}) значение изменилось в [клетке ${event.cell}](${job.sheet.urlTo(
-                        event.cell
-                    )}):
+                        В [табличке](${job.sheet.sheetUrl}) значение изменилось в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
                         Старое:
                         ```
                         ${event.oldText}```
@@ -174,11 +170,14 @@ class Controller(kodein: Kodein) {
 
     fun addJob(trackJob: TrackJob) {
         scope.launch {
-            // FIXME оно тут надо вообще?
             tracker.addJob(trackJob).consumeEach { event ->
                 handleEvent(trackJob, event)
             }
         }
+    }
+
+    fun removeJob(trackJob: TrackJob) {
+        tracker.removeJob(trackJob)
     }
 }
 

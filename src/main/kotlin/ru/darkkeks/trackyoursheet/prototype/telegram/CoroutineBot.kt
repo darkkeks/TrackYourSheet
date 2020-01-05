@@ -5,8 +5,8 @@ import com.pengrad.telegrambot.TelegramBot
 import com.pengrad.telegrambot.TelegramException
 import com.pengrad.telegrambot.UpdatesListener
 import com.pengrad.telegrambot.model.Update
-import com.pengrad.telegrambot.model.User
 import com.pengrad.telegrambot.request.BaseRequest
+import com.pengrad.telegrambot.request.DeleteWebhook
 import com.pengrad.telegrambot.response.BaseResponse
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -20,15 +20,18 @@ import kotlin.coroutines.suspendCoroutine
 class CoroutineBot {
     private val bot: TelegramBot = TelegramBot(BOT_TOKEN)
 
-    fun run(): Flow<Update> = callbackFlow {
-        bot.setUpdatesListener { updates ->
-            updates.forEach { update ->
-                offer(update)
+    suspend fun run(): Flow<Update> {
+        execute(DeleteWebhook())
+        return callbackFlow {
+            bot.setUpdatesListener { updates ->
+                updates.forEach { update ->
+                    offer(update)
+                }
+                UpdatesListener.CONFIRMED_UPDATES_ALL
             }
-            UpdatesListener.CONFIRMED_UPDATES_ALL
-        }
 
-        awaitClose()
+            awaitClose()
+        }
     }
 
     suspend fun <T : BaseRequest<T, R>, R : BaseResponse> execute(request: T): R {

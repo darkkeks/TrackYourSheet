@@ -11,6 +11,8 @@ import org.litote.kmongo.eq
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
+import ru.darkkeks.trackyoursheet.prototype.telegram.CallbackButton
+import java.time.Duration
 import java.time.Instant
 
 data class User(
@@ -29,6 +31,7 @@ data class TrackJob(
     val range: CellRange,
     val interval: TrackInterval,
     val owner: Id<User>,
+    val enabled: Boolean,
     val _id: Id<TrackJob> = newId()
 )
 
@@ -42,14 +45,20 @@ data class RangeData(
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 abstract class TrackInterval
 
-data class PeriodTrackInterval(val periodSeconds: Int) : TrackInterval() {
-    override fun toString() = "$periodSeconds секунд"
+data class PeriodTrackInterval(val period: Long) : TrackInterval() {
+
+    constructor(duration: Duration) : this(duration.seconds)
+
+    fun asDuration() = Duration.ofSeconds(period)
+
+    override fun toString(): String = TimeUnits.durationToString(asDuration())
 }
 
 class SheetTrackDao(kodein: Kodein) {
     val database: CoroutineDatabase by kodein.instance()
     val users = database.getCollection<User>()
     val jobs = database.getCollection<TrackJob>()
+    val buttons = database.getCollection<CallbackButton>()
 
     val rangeData = mutableMapOf<Id<TrackJob>, RangeData>()
 //    val rangeData = database.getCollection<RangeData>()
@@ -95,5 +104,13 @@ class SheetTrackDao(kodein: Kodein) {
 
     suspend fun saveJob(trackJob: TrackJob) {
         jobs.save(trackJob)
+    }
+
+    suspend fun saveButton(button: CallbackButton) {
+        buttons.save(button)
+    }
+
+    suspend fun getButton(hexString: String): CallbackButton? {
+        return buttons.findOneById(ObjectId(hexString))
     }
 }

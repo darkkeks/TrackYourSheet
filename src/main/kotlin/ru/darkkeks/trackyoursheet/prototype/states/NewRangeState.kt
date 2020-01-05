@@ -7,6 +7,7 @@ import ru.darkkeks.trackyoursheet.prototype.TrackJob
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
+import java.time.Duration
 
 class NewRangeState : GlobalUserState(DefaultState()) {
 
@@ -93,8 +94,9 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         val trackJob = TrackJob(
             sheetData,
             range!!,
-            PeriodTrackInterval(10),
-            user._id
+            PeriodTrackInterval(Duration.ofSeconds(10)),
+            user._id,
+            true
         )
         dao.saveJob(trackJob)
 
@@ -149,10 +151,9 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         }
     }
 
-    private fun createSheetSelectKeyboard(sheets: List<Sheet>, context: UserActionContext) = buildInlineKeyboard {
+    private suspend fun createSheetSelectKeyboard(sheets: List<Sheet>, context: UserActionContext) = buildInlineKeyboard {
         sheets.forEach {
-            row(button(it.properties.title, context,
-                       SheetSelectButton(it.properties.sheetId)))
+            row(button(it.properties.title, context, SheetSelectButton(it.properties.sheetId)))
         }
     }
 
