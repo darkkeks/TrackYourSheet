@@ -7,9 +7,12 @@ import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
 import org.litote.kmongo.Id
 import org.litote.kmongo.coroutine.CoroutineDatabase
+import org.litote.kmongo.descending
 import org.litote.kmongo.eq
+import org.litote.kmongo.id.StringId
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
+import ru.darkkeks.trackyoursheet.prototype.sheet.RangeData
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import ru.darkkeks.trackyoursheet.prototype.telegram.CallbackButton
 import java.time.Duration
@@ -35,13 +38,6 @@ data class TrackJob(
     val _id: Id<TrackJob> = newId()
 )
 
-data class RangeData(
-    val data: Spreadsheet,
-    val jobId: Id<TrackJob>,
-    val time: Instant = Instant.now(),
-    val _id: Id<RangeData> = newId()
-)
-
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 abstract class TrackInterval
 
@@ -58,22 +54,18 @@ class SheetTrackDao(kodein: Kodein) {
     val database: CoroutineDatabase by kodein.instance()
     val users = database.getCollection<User>()
     val jobs = database.getCollection<TrackJob>()
+    val rangeData = database.getCollection<RangeData>()
     val buttons = database.getCollection<CallbackButton>()
 
-    val rangeData = mutableMapOf<Id<TrackJob>, RangeData>()
-//    val rangeData = database.getCollection<RangeData>()
-
     suspend fun getLastData(id: Id<TrackJob>): RangeData? {
-        return rangeData[id]
-//        return rangeData.find(RangeData::jobId eq id)
-//            .sort(descending(RangeData::time))
-//            .limit(1)
-//            .first()
+        return rangeData.find(RangeData::job eq id)
+            .sort(descending(RangeData::time))
+            .limit(1)
+            .first()
     }
 
     suspend fun saveData(data: RangeData) {
-        rangeData[data.jobId] = data
-//        rangeData.save(data)
+        rangeData.save(data)
     }
 
     suspend fun getUserJobs(id: Id<User>): List<TrackJob> {

@@ -8,11 +8,9 @@ import org.kodein.di.generic.instance
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
-import ru.darkkeks.trackyoursheet.prototype.RangeData
 import ru.darkkeks.trackyoursheet.prototype.SheetTrackDao
 import ru.darkkeks.trackyoursheet.prototype.TrackJob
-import java.time.Duration
-import kotlin.system.measureTimeMillis
+import kotlin.IllegalStateException
 
 
 class SheetTracker(kodein: Kodein) {
@@ -54,26 +52,42 @@ class SheetTracker(kodein: Kodein) {
         jobs.remove(trackJob._id)?.cancel()
     }
 
-    private suspend fun runJob(job: TrackJob): List<DataEvent> {
-        val result = mutableListOf<DataEvent>()
+    private suspend fun runJob(job: TrackJob) = buildList<DataEvent> {
         val data = withTimeout(5000) {
             sheetApi.getRanges(job.sheet, listOf("${job.sheet.sheetName}!${job.range}"))
         }
+        val sheet = data.sheets.find {
+            it.properties.sheetId == job.sheet.sheetId
+        } ?: throw IllegalStateException("No sheet with id ${job.sheet.id} in response")
+        val grid = sheet.data[0]
 
         val oldData = trackDao.getLastData(job._id)
-        val newData = RangeData(data, job._id, _id = oldData?._id ?: newId())
+        val newData = RangeData(grid, job._id, _id = oldData?._id ?: newId())
 
         if (oldData == null) {
-            result.add(InitialDataLoadEvent(data))
+            add(InitialDataLoadEvent(data))
         } else {
-            dataCompareService.compare(oldData, newData) { event ->
-                // FIXME Кто нибудь расскажите мне как это делать нормально без листа :D
-                result.add(event)
-            }
+            dataCompareService.compare(sheet, oldData, newData) { add(it) }
         }
 
         trackDao.saveData(newData)
-
-        return result
     }
+}
+
+class ListBuilder<T> {
+    private val result = mutableListOf<T>()
+
+    fun add(vararg values: T) {
+        values.forEach {
+            result.add(it)
+        }
+    }
+
+    fun build() = result.toList()
+}
+
+inline fun <T> buildList(block: ListBuilder<T>.() -> Unit): List<T> {
+    val builder = ListBuilder<T>()
+    builder.block()
+    return builder.build()
 }

@@ -1,6 +1,11 @@
 package ru.darkkeks.trackyoursheet.prototype.sheet
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.KeyDeserializer
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.Sheet
 import com.google.api.services.sheets.v4.model.Spreadsheet
@@ -102,7 +107,7 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
     }
 }
 
-class Cell(val row: Int, val column: Int) {
+data class Cell(val row: Int, val column: Int) {
     operator fun plus(shift: Pair<Int, Int>) =
         Cell(row + shift.first, column + shift.second)
 
@@ -147,6 +152,19 @@ class Cell(val row: Int, val column: Int) {
             val (column, row) = match.groupValues.subList(1, 3)
             return Cell(row.toInt(), sheetStringToIndex(column))
         }
+    }
+}
+
+class CellKeySerializer : JsonSerializer<Cell>() {
+    override fun serialize(value: Cell, gen: JsonGenerator, serializers: SerializerProvider) {
+        gen.writeFieldName("${value.row},${value.column}")
+    }
+}
+
+class CellKeyDeserializer : KeyDeserializer() {
+    override fun deserializeKey(key: String, ctxt: DeserializationContext): Any {
+        val (r, c) = key.split(",")
+        return Cell(r.toInt(), c.toInt())
     }
 }
 

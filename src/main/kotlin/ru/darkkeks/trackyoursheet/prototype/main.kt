@@ -1,5 +1,6 @@
 package ru.darkkeks.trackyoursheet.prototype
 
+import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
@@ -22,6 +23,7 @@ import org.kodein.di.generic.singleton
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
+import org.litote.kmongo.util.KMongoConfiguration
 import ru.darkkeks.trackyoursheet.prototype.sheet.*
 import ru.darkkeks.trackyoursheet.prototype.states.DefaultState
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
@@ -186,6 +188,11 @@ suspend fun main() {
         println("UNHANDLED EXCEPTION\n$t $e")
         e.printStackTrace()
     }
+
+    val module = SimpleModule()
+        .addKeySerializer(Cell::class.java, CellKeySerializer())
+        .addKeyDeserializer(Cell::class.java, CellKeyDeserializer())
+    KMongoConfiguration.registerBsonModule(module)
 
     val controller = Controller(kodein)
     controller.start()
