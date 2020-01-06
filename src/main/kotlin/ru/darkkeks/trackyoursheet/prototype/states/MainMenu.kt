@@ -169,6 +169,8 @@ class SelectIntervalState(val rangeId: Id<TrackJob>) : MessageState() {
                         if (range.interval !is PeriodTrackInterval || range.interval.period != seconds) {
                             val newRange = range.copy(interval = PeriodTrackInterval(seconds))
                             context.controller.sheetDao.saveJob(newRange)
+                            context.controller.removeJob(newRange)
+                            context.controller.addJob(newRange)
                         }
                         changeState(RangeMenuState(rangeId), context)
                     }

@@ -15,7 +15,7 @@ enum class TimeUnits(private val form1: String,
     fun getCountForm(count: Long) = when {
         count in 11..14 -> form3
         count % 10 == 1L -> form1
-        count % 10 in 2..5 -> form2
+        count % 10 in 2..4 -> form2
         else -> form3
     }
 
