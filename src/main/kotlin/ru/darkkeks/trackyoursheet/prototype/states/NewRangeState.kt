@@ -100,7 +100,7 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         )
         dao.saveJob(trackJob)
 
-        context.controller.addJob(trackJob)
+        context.controller.startJob(trackJob)
 
         toParentState(context)
 

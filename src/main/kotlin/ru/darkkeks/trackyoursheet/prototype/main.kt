@@ -137,12 +137,12 @@ class Controller(kodein: Kodein) {
     private suspend fun preloadJobs() {
         sheetDao.getAllJobs().forEach { job ->
             if (job.enabled) {
-                addJob(job)
+                startJob(job)
             }
         }
     }
 
-    fun addJob(trackJob: TrackJob) {
+    fun startJob(trackJob: TrackJob) {
         scope.launch {
             tracker.addJob(trackJob).consumeEach { event ->
                 handleEvent(trackJob, event)
@@ -150,7 +150,7 @@ class Controller(kodein: Kodein) {
         }
     }
 
-    fun removeJob(trackJob: TrackJob) {
+    fun stopJob(trackJob: TrackJob) {
         tracker.removeJob(trackJob)
     }
 

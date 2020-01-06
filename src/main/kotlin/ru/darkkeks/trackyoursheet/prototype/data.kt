@@ -105,4 +105,8 @@ class SheetTrackDao(kodein: Kodein) {
     suspend fun getButton(hexString: String): CallbackButton? {
         return buttons.findOneById(ObjectId(hexString))
     }
+
+    suspend fun deleteJob(rangeId: Id<TrackJob>) {
+        jobs.deleteOneById(ObjectId(rangeId.toString()))
+    }
 }
