@@ -19,5 +19,19 @@ class DataCompareService {
                 }
             }
         }
+
+        old.notes.keys.intersect(new.notes.keys).forEach {
+            if (old.notes[it] != new.notes[it]) {
+                block(NoteModifyEvent(sheet, new.start + it, old.notes.getValue(it), new.notes.getValue(it)))
+            }
+        }
+
+        old.notes.keys.minus(new.notes.keys).forEach {
+            block(RemoveNoteEvent(sheet, new.start + it, old.notes.getValue(it)))
+        }
+
+        new.notes.keys.minus(old.notes.keys).forEach {
+            block(AddNoteEvent(sheet, new.start + it, new.notes.getValue(it)))
+        }
     }
 }

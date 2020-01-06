@@ -181,6 +181,7 @@ class SelectIntervalState(val rangeId: Id<TrackJob>) : MessageState() {
 
     companion object {
         private val AVAILABLE_OPTIONS = listOf(
+            Duration.ofSeconds(5),
             Duration.ofMinutes(1),
             Duration.ofMinutes(30),
             Duration.ofHours(1),

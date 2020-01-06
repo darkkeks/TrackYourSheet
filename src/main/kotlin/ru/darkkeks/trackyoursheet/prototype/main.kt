@@ -144,32 +144,6 @@ class Controller(kodein: Kodein) {
         }
     }
 
-    private suspend fun handleEvent(job: TrackJob, event: DataEvent) {
-        println("Job #${job._id} received event $event")
-
-        when (event) {
-            is CellTextModifyEvent -> {
-                val modifyMessage: (CellTextModifyEvent) -> String = { event ->
-                    """
-                        В [табличке](${job.sheet.sheetUrl}) значение изменилось в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
-                        Старое:
-                        ```
-                        ${event.oldText}```
-                        Новое:
-                        ```
-                        ${event.newText}```
-                    """.trimIndent()
-                }
-
-                val owner = sheetDao.getUserById(job.owner)!!
-                bot.execute(SendMessage(
-                    owner.userId,
-                    modifyMessage(event)
-                ).parseMode(ParseMode.Markdown).disableWebPagePreview(true))
-            }
-        }
-    }
-
     fun addJob(trackJob: TrackJob) {
         scope.launch {
             tracker.addJob(trackJob).consumeEach { event ->
@@ -180,6 +154,37 @@ class Controller(kodein: Kodein) {
 
     fun removeJob(trackJob: TrackJob) {
         tracker.removeJob(trackJob)
+    }
+
+    private suspend fun handleEvent(job: TrackJob, event: DataEvent) {
+        println("Job #${job._id} received event $event")
+        val owner = sheetDao.getUserById(job.owner)
+            ?: throw IllegalStateException("Event for non-existent user ${job.owner}")
+
+        when (event) {
+            is CellTextModifyEvent -> bot.sendMessage(owner.userId.toLong(), """
+                Изменено значение в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
+                Старое:```
+                ${event.oldText}```
+                Новое:```
+                ${event.newText}```
+            """.trimIndent())
+            is AddNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                Добавлена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):```
+                ${event.note}```
+            """.trimIndent())
+            is NoteModifyEvent -> bot.sendMessage(owner.userId.toLong(), """
+                Изменена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
+                Старая:```
+                ${event.oldNote}```
+                Новая:```
+                ${event.newNote}```
+            """.trimIndent())
+            is RemoveNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                Удалена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}): ```
+                ${event.note}```
+            """.trimIndent())
+        }
     }
 }
 
