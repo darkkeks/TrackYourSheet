@@ -108,11 +108,13 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
 }
 
 data class Cell(val row: Int, val column: Int) {
+
     operator fun plus(shift: Pair<Int, Int>) =
         Cell(row + shift.first, column + shift.second)
 
-    operator fun plus(shift: Cell) =
-        Cell(row + shift.row, column + shift.column)
+    operator fun plus(shift: Cell) = this + (shift.row to shift.column)
+
+    operator fun plus(shift: Int) = this + (shift to shift)
 
     override fun toString() = "${indexToSheetString(column)}${row}"
 

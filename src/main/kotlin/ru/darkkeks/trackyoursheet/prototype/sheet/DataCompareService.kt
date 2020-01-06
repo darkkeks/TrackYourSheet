@@ -15,14 +15,18 @@ class DataCompareService {
             val columns = max(oRow.size, nRow.size)
             for (j in 0 until columns) {
                 if (oRow[j] != nRow[j]) {
-                    block(CellTextModifyEvent(sheet, new.start + Cell(i, j), oRow[j], nRow[j]))
+                    block(when {
+                        oRow[j].isEmpty() -> AddTextEvent(sheet, new.start + Cell(i, j), nRow[j])
+                        nRow[j].isEmpty() -> RemoveTextEvent(sheet, new.start + Cell(i, j), oRow[j])
+                        else -> ModifyTextEvent(sheet, new.start + Cell(i, j), oRow[j], nRow[j])
+                    })
                 }
             }
         }
 
         old.notes.keys.intersect(new.notes.keys).forEach {
             if (old.notes[it] != new.notes[it]) {
-                block(NoteModifyEvent(sheet, new.start + it, old.notes.getValue(it), new.notes.getValue(it)))
+                block(ModifyNoteEvent(sheet, new.start + it, old.notes.getValue(it), new.notes.getValue(it)))
             }
         }
 

@@ -8,9 +8,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.sheets.v4.Sheets
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoCredential
-import com.pengrad.telegrambot.model.request.ParseMode
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
-import com.pengrad.telegrambot.request.SendMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
@@ -161,29 +159,40 @@ class Controller(kodein: Kodein) {
         val owner = sheetDao.getUserById(job.owner)
             ?: throw IllegalStateException("Event for non-existent user ${job.owner}")
 
-        when (event) {
-            is CellTextModifyEvent -> bot.sendMessage(owner.userId.toLong(), """
-                Изменено значение в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
-                Старое:```
-                ${event.oldText}```
-                Новое:```
-                ${event.newText}```
-            """.trimIndent())
-            is AddNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
-                Добавлена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):```
-                ${event.note}```
-            """.trimIndent())
-            is NoteModifyEvent -> bot.sendMessage(owner.userId.toLong(), """
-                Изменена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}):
-                Старая:```
-                ${event.oldNote}```
-                Новая:```
-                ${event.newNote}```
-            """.trimIndent())
-            is RemoveNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
-                Удалена заметка в [клетке ${event.cell}](${job.sheet.urlTo(event.cell)}): ```
-                ${event.note}```
-            """.trimIndent())
+        if (event is CellEvent) {
+            val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell)})"
+            when (event) {
+                is AddTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Добавлено значение в $cellString: ```
+                    ${event.text}```
+                """.trimIndent())
+                is ModifyTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Изменено значение в $cellString:
+                    Старое:```
+                    ${event.oldText}```
+                    Новое:```
+                    ${event.newText}```
+                """.trimIndent())
+                is RemoveTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Удалено значение в $cellString:```
+                    ${event.text}```
+                """.trimIndent())
+                is AddNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Добавлена заметка в $cellString: ```
+                    ${event.note}```
+                """.trimIndent())
+                is ModifyNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Изменена заметка в $cellString:
+                    Старая:```
+                    ${event.oldNote}```
+                    Новая:```
+                    ${event.newNote}```
+                """.trimIndent())
+                is RemoveNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                    Удалена заметка в $cellString: ```
+                    ${event.note}```
+                """.trimIndent())
+            }
         }
     }
 }

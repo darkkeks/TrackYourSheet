@@ -12,14 +12,26 @@ abstract class CellEvent(
     val cell: Cell
 ) : DataEvent()
 
-class CellTextModifyEvent(
+class AddTextEvent(
+    sheet: Sheet,
+    cell: Cell,
+    val text: String
+) : CellEvent(sheet, cell)
+
+class ModifyTextEvent(
     sheet: Sheet,
     cell: Cell,
     val oldText: String,
     val newText: String
 ) : CellEvent(sheet, cell)
 
-class NoteModifyEvent(
+class RemoveTextEvent(
+    sheet: Sheet,
+    cell: Cell,
+    val text: String
+) : CellEvent(sheet, cell)
+
+class ModifyNoteEvent(
     sheet: Sheet,
     cell: Cell,
     val oldNote: String,
