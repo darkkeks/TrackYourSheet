@@ -9,7 +9,7 @@ import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
 import ru.darkkeks.trackyoursheet.prototype.SheetTrackDao
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.Range
 import kotlin.IllegalStateException
 
 
@@ -21,38 +21,38 @@ class SheetTracker(kodein: Kodein) {
 
     private val trackDao: SheetTrackDao by kodein.instance()
 
-    private val jobs: MutableMap<Id<TrackJob>, ReceiveChannel<DataEvent>> = mutableMapOf()
+    private val jobs: MutableMap<Id<Range>, ReceiveChannel<DataEvent>> = mutableMapOf()
 
     private val dataCompareService = DataCompareService()
 
-    fun addJob(trackJob: TrackJob): ReceiveChannel<DataEvent> {
-        require(!jobs.contains(trackJob._id)) {
+    fun addJob(range: Range): ReceiveChannel<DataEvent> {
+        require(!jobs.contains(range._id)) {
             "Job is already being tracked"
         }
 
         val channel = scope.produce {
-            when (trackJob.interval) {
+            when (range.interval) {
                 is PeriodTrackInterval -> {
                     while (true) {
                         scope.launch {
-                            runJob(trackJob).forEach { send(it) }
+                            runJob(range).forEach { send(it) }
                         }
-                        delay(trackJob.interval.asDuration().toMillis())
+                        delay(range.interval.asDuration().toMillis())
                     }
                 }
-                else -> throw IllegalArgumentException("Unsupported time interval ${trackJob.interval}")
+                else -> throw IllegalArgumentException("Unsupported time interval ${range.interval}")
             }
         }
 
-        jobs[trackJob._id] = channel
+        jobs[range._id] = channel
         return channel
     }
 
-    fun removeJob(trackJob: TrackJob) {
-        jobs.remove(trackJob._id)?.cancel()
+    fun removeJob(range: Range) {
+        jobs.remove(range._id)?.cancel()
     }
 
-    private suspend fun runJob(job: TrackJob) = buildList<DataEvent> {
+    private suspend fun runJob(job: Range) = buildList<DataEvent> {
         val data = withTimeout(5000) {
             sheetApi.getRanges(job.sheet, listOf("${job.sheet.sheetName}!${job.range}"))
         }

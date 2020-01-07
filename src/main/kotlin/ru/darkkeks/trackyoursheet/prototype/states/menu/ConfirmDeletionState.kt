@@ -1,11 +1,11 @@
 package ru.darkkeks.trackyoursheet.prototype.states.menu
 
 import org.litote.kmongo.Id
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
-class ConfirmDeletionState(val rangeId: Id<TrackJob>) : MessageState() {
-    override suspend fun draw(context: UserActionContext) = MessageRender("""
+class ConfirmDeletionState(val rangeId: Id<Range>) : MessageState() {
+    override suspend fun draw(context: UserActionContext) = TextRender("""
         Вы уверены что хотите удалить ренж?))))
     """.trimIndent(), buildInlineKeyboard {
         add(button("✅ Да", YesButton(this@ConfirmDeletionState)))

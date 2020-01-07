@@ -3,7 +3,8 @@ package ru.darkkeks.trackyoursheet.prototype.states
 import com.google.api.services.sheets.v4.model.Sheet
 import com.pengrad.telegrambot.request.EditMessageReplyMarkup
 import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.PostTarget
+import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
@@ -91,12 +92,13 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         val user = dao.getOrCreateUser(context.userId)
 
         val sheetData = SheetData(spreadsheetId!!, sheet!!.properties.sheetId, sheet!!.properties.title)
-        val trackJob = TrackJob(
+        val trackJob = Range(
             sheetData,
             range!!,
             PeriodTrackInterval(Duration.ofSeconds(10)),
             user._id,
-            true
+            true,
+            PostTarget.private(user.userId)
         )
         dao.saveJob(trackJob)
 

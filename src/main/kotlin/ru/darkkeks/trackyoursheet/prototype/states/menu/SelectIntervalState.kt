@@ -3,14 +3,14 @@ package ru.darkkeks.trackyoursheet.prototype.states.menu
 import org.litote.kmongo.Id
 import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
 import ru.darkkeks.trackyoursheet.prototype.TimeUnits
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 import java.time.Duration
 
-class SelectIntervalState(val rangeId: Id<TrackJob>) : MessageState() {
+class SelectIntervalState(val rangeId: Id<Range>) : MessageState() {
     class IntervalButton(val seconds: Long, state: MessageState) : StatefulButton(state)
 
-    override suspend fun draw(context: UserActionContext) = MessageRender("""
+    override suspend fun draw(context: UserActionContext) = TextRender("""
         Выберите как часто проверять ренж на обновления
     """.trimIndent(), buildInlineKeyboard {
         AVAILABLE_OPTIONS.chunked(3).forEach { row ->

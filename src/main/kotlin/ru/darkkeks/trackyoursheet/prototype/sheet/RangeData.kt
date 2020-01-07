@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.google.api.services.sheets.v4.model.GridData
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.Range
 import java.time.Instant
 
 class RangeData {
@@ -12,7 +12,7 @@ class RangeData {
     val start: Cell
     val data: List<List<String>>
     val notes: Map<Cell, String>
-    val job: Id<TrackJob>
+    val job: Id<Range>
     val time: Instant
     val _id: Id<RangeData>
 
@@ -20,7 +20,7 @@ class RangeData {
     constructor(start: Cell,
                 data: List<List<String>>,
                 notes: Map<Cell, String>,
-                job: Id<TrackJob>,
+                job: Id<Range>,
                 time: Instant = Instant.now(),
                 _id: Id<RangeData> = newId()) {
         this.start = start
@@ -32,7 +32,7 @@ class RangeData {
     }
 
     constructor(grid: GridData,
-                job: Id<TrackJob>,
+                job: Id<Range>,
                 time: Instant = Instant.now(),
                 _id: Id<RangeData> = newId()) {
         start = Cell(grid.startRow ?: 0, grid.startColumn ?: 0)

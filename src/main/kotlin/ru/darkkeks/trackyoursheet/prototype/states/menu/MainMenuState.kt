@@ -8,7 +8,7 @@ class MainMenuState : MessageState() {
     class ListRangesButton(state: MessageState) : StatefulButton(state)
     class SettingsButton(state: MessageState) : StatefulButton(state)
 
-    override suspend fun draw(context: UserActionContext) = MessageRender("""
+    override suspend fun draw(context: UserActionContext) = TextRender("""
         Привет, я умею наблюдать за гугл-табличками. ${"\uD83E\uDD13"}
         
         Давай будем называть _ренжем_ (_ренж_, _ренжик_, в _ренже_, _ренжику_, от англ. _range_) диапазон не некотором листе в гугл таблице. 

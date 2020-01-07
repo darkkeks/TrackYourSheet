@@ -2,55 +2,57 @@ package ru.darkkeks.trackyoursheet.prototype.states.menu
 
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton
 import org.litote.kmongo.Id
-import ru.darkkeks.trackyoursheet.prototype.TrackJob
+import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
-class RangeMenuState(val rangeId: Id<TrackJob>) : MessageState() {
-
+class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
     override suspend fun draw(context: UserActionContext): MessageRender {
         // TODO Нормальная ошибка при исчезновении ренжика
         val range = context.controller.sheetDao.getJob(rangeId)
-            ?: return MessageRender("Ренжик не найден \uD83D\uDE22", buildInlineKeyboard {
+            ?: return TextRender("Ренжик не найден \uD83D\uDE22", buildInlineKeyboard {
                 row(goBackButton())
             })
         val spreadsheet = context.controller.sheetApi.getSheet(range.sheet)
-        return MessageRender("""
+        return TextRender("""
             Инфа о ренжике:
             
             Табличка: [${spreadsheet.properties.title}](${spreadsheet.spreadsheetUrl})
             Лист: [${range.sheet.sheetName}](${range.sheet.sheetUrl})
             Ренж: [${range.range}](${range.sheet.urlTo(range.range)})
         """.trimIndent(), buildInlineKeyboard {
+            add(toggleEnabledButton(range))
+            add(intervalButton(range))
+            newRow()
+            add(postTargetButton(range))
+            add(deleteButton())
+            newRow()
             row(goBackButton())
-            row(intervalButton(range))
-            row(toggleEnabledButton(range))
-            row(deleteButton(range))
         })
+    }
+
+    class PostTargetButton(state: MessageState) : StatefulButton(state)
+
+    private fun postTargetButton(range: Range): InlineKeyboardButton {
+        return button("\uD83D\uDCDD Куда постим: ${range.postTarget.name}", PostTargetButton(this))
     }
 
     class DeleteButton(state: MessageState) : StatefulButton(state)
 
-    private fun deleteButton(range: TrackJob): InlineKeyboardButton {
+    private fun deleteButton(): InlineKeyboardButton {
         return button("\uD83D\uDDD1 Удалить", DeleteButton(this))
     }
 
     class SelectIntervalButton(state: MessageState) : StatefulButton(state)
 
-    private fun intervalButton(range: TrackJob): InlineKeyboardButton {
+    private fun intervalButton(range: Range): InlineKeyboardButton {
         return button("⏱ Интервал: ${range.interval}", SelectIntervalButton(this))
     }
 
     class ToggleEnabledButton(val target: Boolean, state: MessageState) : StatefulButton(state)
 
-    private fun toggleEnabledButton(range: TrackJob): InlineKeyboardButton {
+    private fun toggleEnabledButton(range: Range): InlineKeyboardButton {
         val text = if (range.enabled) "✅ Включено" else "❌ Выключено"
         return button(text, ToggleEnabledButton(range.enabled.not(), this))
-    }
-
-    class GoBackButton(state: MessageState) : StatefulButton(state)
-
-    private fun goBackButton(): InlineKeyboardButton {
-        return button("◀ Назад", GoBackButton(this))
     }
 
     override suspend fun handleButton(context: CallbackButtonContext) {
@@ -73,6 +75,7 @@ class RangeMenuState(val rangeId: Id<TrackJob>) : MessageState() {
                     changeState(RangeMenuState(rangeId), context)
                 }
             }
+            is PostTargetButton -> changeState(SelectPostTargetState(rangeId), context)
             is SelectIntervalButton -> changeState(SelectIntervalState(rangeId), context)
             is DeleteButton -> changeState(ConfirmDeletionState(rangeId), context)
         }

@@ -8,7 +8,11 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.sheets.v4.Sheets
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoCredential
+import com.pengrad.telegrambot.model.Chat
+import com.pengrad.telegrambot.model.request.InlineKeyboardButton
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
+import com.pengrad.telegrambot.request.GetMe
+import com.pengrad.telegrambot.response.GetMeResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.consumeEach
@@ -78,57 +82,85 @@ class Controller(kodein: Kodein) {
 
     private val userStates = mutableMapOf<StateHolder, GlobalUserState>()
 
+    lateinit var me: GetMeResponse
+
     suspend fun start() {
         preloadJobs()
 
+        me = bot.execute(GetMe())
+
         bot.run().collect { update ->
-            when {
-                update.message() != null -> {
-                    val message = update.message()
-                    val context = if (CommandContext.isCommand(message.text())) {
-                        CommandContext(this, message)
-                    } else {
-                        NewMessageContext(this, message)
-                    }
+            println(update)
 
-                    val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
-                    when (context) {
-                        is CommandContext -> state.handleCommand(context)
-                        else -> state.handleMessage(context)
-                    }
-                }
-                update.callbackQuery() != null -> {
-                    val callbackQuery = update.callbackQuery()
+            scope.launch {
+                when {
+                    update.message() != null -> {
+                        val message = update.message()
 
-                    val button = sheetDao.getButton(callbackQuery.data())
-
-                    if (button == null) {
-                        println("Warning! Can't find callback button ${callbackQuery.data()}")
-                        bot.execute(AnswerCallbackQuery(callbackQuery.id()).text("Кнопка не найдена"))
-                    } else {
-                        val context = CallbackButtonContext(this, callbackQuery, button)
-
-                        when (button) {
-                            is GlobalStateButton -> {
-                                val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
-                                state.handleCallback(context)
+                        if (message.chat().type() != Chat.Type.Private) {
+                            NewMessageContext(this@Controller, message).reply("""
+                                В группу я могу только срать обновлениями. 
+                                
+                                Администраторы группы могут добавить ренжей с информированием сюда в личке. ${"\uD83D\uDE0F"}
+                            """.trimIndent(), replyMarkup = buildInlineKeyboard {
+                                add(InlineKeyboardButton("\u2699️Настроить")
+                                        .url("tg://${me.user().username()}?start=${message.chat().id()}"))
+                            })
+                        } else {
+                            val context = if (CommandContext.isCommand(message.text())) {
+                                CommandContext(this@Controller, message)
+                            } else {
+                                NewMessageContext(this@Controller, message)
                             }
-                            is StatefulButton -> {
-                                button.state.handleButton(context)
-                            }
-                            else -> {
-                                context.answerCallbackQuery("Не получилось обработать кнопку :(")
+
+                            val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
+                            when (context) {
+                                is CommandContext -> {
+                                    if (context.command == "start" && context.arguments.isNotEmpty()) {
+                                        context.reply("Кажется ты хочешь настроить чатик ${context.arguments.first()}, но фича еще не готова))))")
+                                    } else {
+                                        state.handleCommand(context)
+                                    }
+                                }
+                                else -> state.handleMessage(context)
                             }
                         }
+                    }
+                    update.callbackQuery() != null -> {
+                        val callbackQuery = update.callbackQuery()
 
-                        if (!context.answered) {
-                            context.answerCallbackQuery()
+                        val button = sheetDao.getButton(callbackQuery.data())
+
+                        if (button == null) {
+                            println("Warning! Can't find callback button ${callbackQuery.data()}")
+                            bot.execute(AnswerCallbackQuery(callbackQuery.id()).text("Кнопка не найдена"))
+                        } else {
+                            val context = CallbackButtonContext(this@Controller, callbackQuery, button)
+
+                            when (button) {
+                                is GlobalStateButton -> {
+                                    val state = userStates.computeIfAbsent(context.stateHolder) { DefaultState() }
+                                    state.handleCallback(context)
+                                }
+                                is StatefulButton -> {
+                                    button.state.handleButton(context)
+                                }
+                                else -> {
+                                    context.answerCallbackQuery("Не получилось обработать кнопку :(")
+                                }
+                            }
+
+                            if (!context.answered) {
+                                context.answerCallbackQuery()
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    fun getUserState(user: StateHolder) = userStates[user]
 
     fun changeState(user: StateHolder, state: GlobalUserState) {
         userStates[user] = state
@@ -142,19 +174,19 @@ class Controller(kodein: Kodein) {
         }
     }
 
-    fun startJob(trackJob: TrackJob) {
+    fun startJob(range: Range) {
         scope.launch {
-            tracker.addJob(trackJob).consumeEach { event ->
-                handleEvent(trackJob, event)
+            tracker.addJob(range).consumeEach { event ->
+                handleEvent(range, event)
             }
         }
     }
 
-    fun stopJob(trackJob: TrackJob) {
-        tracker.removeJob(trackJob)
+    fun stopJob(range: Range) {
+        tracker.removeJob(range)
     }
 
-    private suspend fun handleEvent(job: TrackJob, event: DataEvent) {
+    private suspend fun handleEvent(job: Range, event: DataEvent) {
         println("Job #${job._id} received event $event")
         val owner = sheetDao.getUserById(job.owner)
             ?: throw IllegalStateException("Event for non-existent user ${job.owner}")

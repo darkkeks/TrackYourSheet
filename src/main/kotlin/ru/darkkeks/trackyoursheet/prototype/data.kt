@@ -1,7 +1,7 @@
 package ru.darkkeks.trackyoursheet.prototype
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.google.api.services.sheets.v4.model.Spreadsheet
+import com.pengrad.telegrambot.model.Chat
 import org.bson.types.ObjectId
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
@@ -9,14 +9,12 @@ import org.litote.kmongo.Id
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.descending
 import org.litote.kmongo.eq
-import org.litote.kmongo.id.StringId
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.RangeData
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
 import ru.darkkeks.trackyoursheet.prototype.telegram.CallbackButton
 import java.time.Duration
-import java.time.Instant
 
 data class User(
     val userId: Int,
@@ -25,17 +23,22 @@ data class User(
 
 data class PostTarget(
     val chatId: Long,
-    val owner: Id<User>,
-    val _id: Id<User> = newId()
-)
+    val name: String,
+    val type: Chat.Type
+) {
+    companion object {
+        fun private(userId: Int) = PostTarget(userId.toLong(), "сюда", Chat.Type.Private)
+    }
+}
 
-data class TrackJob(
+data class Range(
     val sheet: SheetData,
     val range: CellRange,
     val interval: TrackInterval,
     val owner: Id<User>,
     val enabled: Boolean,
-    val _id: Id<TrackJob> = newId()
+    val postTarget: PostTarget,
+    val _id: Id<Range> = newId()
 )
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
@@ -53,11 +56,11 @@ data class PeriodTrackInterval(val period: Long) : TrackInterval() {
 class SheetTrackDao(kodein: Kodein) {
     val database: CoroutineDatabase by kodein.instance()
     val users = database.getCollection<User>()
-    val jobs = database.getCollection<TrackJob>()
+    val jobs = database.getCollection<Range>()
     val rangeData = database.getCollection<RangeData>()
     val buttons = database.getCollection<CallbackButton>()
 
-    suspend fun getLastData(id: Id<TrackJob>): RangeData? {
+    suspend fun getLastData(id: Id<Range>): RangeData? {
         return rangeData.find(RangeData::job eq id)
             .sort(descending(RangeData::time))
             .limit(1)
@@ -68,11 +71,11 @@ class SheetTrackDao(kodein: Kodein) {
         rangeData.save(data)
     }
 
-    suspend fun getUserJobs(id: Id<User>): List<TrackJob> {
-        return jobs.find(TrackJob::owner eq id).toList()
+    suspend fun getUserJobs(id: Id<User>): List<Range> {
+        return jobs.find(Range::owner eq id).toList()
     }
 
-    suspend fun getJob(id: Id<TrackJob>) = jobs.findOneById(ObjectId(id.toString()))
+    suspend fun getJob(id: Id<Range>) = jobs.findOneById(ObjectId(id.toString()))
 
     suspend fun getAllJobs() = jobs.find().toList()
 
@@ -94,8 +97,8 @@ class SheetTrackDao(kodein: Kodein) {
         users.save(user)
     }
 
-    suspend fun saveJob(trackJob: TrackJob) {
-        jobs.save(trackJob)
+    suspend fun saveJob(range: Range) {
+        jobs.save(range)
     }
 
     suspend fun saveButton(button: CallbackButton) {
@@ -106,7 +109,7 @@ class SheetTrackDao(kodein: Kodein) {
         return buttons.findOneById(ObjectId(hexString))
     }
 
-    suspend fun deleteJob(rangeId: Id<TrackJob>) {
+    suspend fun deleteJob(rangeId: Id<Range>) {
         jobs.deleteOneById(ObjectId(rangeId.toString()))
     }
 }

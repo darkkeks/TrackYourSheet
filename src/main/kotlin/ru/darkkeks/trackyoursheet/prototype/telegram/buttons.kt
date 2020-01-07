@@ -19,6 +19,12 @@ open class StatefulButton(val state: MessageState) : CallbackButton()
 
 open class GlobalStateButton : CallbackButton()
 
+
+class GoBackButton(state: MessageState) : StatefulButton(state)
+
+fun MessageState.goBackButton() = button("◀ Назад", GoBackButton(this))
+
+
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 abstract class MessageState {
 
@@ -42,18 +48,35 @@ abstract class MessageState {
     }
 
     suspend fun send(context: UserActionContext) {
-        val render = draw(context)
-        context.reply(render.text, replyMarkup = render.keyboard)
-        persistButtons(context.controller.sheetDao)
+        when (val render = draw(context)) {
+            is ChangeStateRender -> render.state.send(context)
+            is TextRender -> {
+                context.reply(render.text, replyMarkup = render.keyboard)
+                persistButtons(context.controller.sheetDao)
+            }
+        }
     }
 
     suspend fun changeState(newState: MessageState, context: CallbackButtonContext) {
-        val render = newState.draw(context)
-        context.editMessage(render.text, render.keyboard)
-        newState.persistButtons(context.controller.sheetDao)
+        when (val render = newState.draw(context)) {
+            is ChangeStateRender -> changeState(render.state, context)
+            is TextRender -> {
+                context.editMessage(render.text, replyMarkup = render.keyboard)
+                newState.persistButtons(context.controller.sheetDao)
+            }
+        }
     }
 
+    fun hijackGlobalState(context: UserActionContext, stateFromParentState: (GlobalUserState) -> GlobalUserState) {
+        val currentState = context.controller.getUserState(context.stateHolder)
+            ?: throw IllegalStateException("No user global state")
+        val newState = stateFromParentState.invoke(currentState)
+        context.controller.changeState(context.stateHolder, newState)
+    }
 }
 
+abstract class MessageRender
 
-data class MessageRender(val text: String, val keyboard: InlineKeyboardMarkup)
+class TextRender(val text: String, val keyboard: InlineKeyboardMarkup) : MessageRender()
+
+class ChangeStateRender(val state: MessageState) : MessageRender()
