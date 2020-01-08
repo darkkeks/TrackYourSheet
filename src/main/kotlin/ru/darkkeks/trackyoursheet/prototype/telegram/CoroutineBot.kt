@@ -53,10 +53,11 @@ class CoroutineBot {
         return execute(request)
     }
 
-    suspend fun <T : BaseRequest<T, R>, R : BaseResponse> execute(request: T): R {
-        val stackTrace = IOException().apply {
-            stackTrace = stackTrace.copyOfRange(1, stackTrace.size)
-        }
+    /**
+     * Does not perform error checks, allows for a better code depending on certain errors
+     */
+    suspend fun <T : BaseRequest<T, R>, R : BaseResponse> executeUnsafe(request: T): R {
+        val stackTrace = getStackTrace()
 
         return suspendCoroutine { continuation ->
             bot.execute(request, object : Callback<T, R> {
@@ -66,16 +67,24 @@ class CoroutineBot {
                 }
 
                 override fun onResponse(request: T, response: R) {
-                    if (response.isOk) {
-                        continuation.resume(response)
-                    } else {
-                        val message = "${request.method} failed with error_code " +
-                                "${response.errorCode()} ${response.description()}"
-                        stackTrace.initCause(TelegramException(message, response))
-                        continuation.resumeWithException(stackTrace)
-                    }
+                    continuation.resume(response)
                 }
             })
         }
+    }
+
+    suspend fun <T : BaseRequest<T, R>, R : BaseResponse> execute(request: T): R {
+        val result = executeUnsafe(request)
+
+        if (!result.isOk) {
+            val message = "${request.method} failed with error_code ${result.errorCode()}: ${result.description()}"
+            throw TelegramException(message, result)
+        }
+
+        return result
+    }
+
+    private fun getStackTrace() = IOException().apply {
+        stackTrace = stackTrace.copyOfRange(2, stackTrace.size)
     }
 }

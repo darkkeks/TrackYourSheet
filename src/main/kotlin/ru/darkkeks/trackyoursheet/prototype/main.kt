@@ -26,6 +26,7 @@ import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
 import org.litote.kmongo.util.KMongoConfiguration
+import org.slf4j.LoggerFactory
 import ru.darkkeks.trackyoursheet.prototype.sheet.*
 import ru.darkkeks.trackyoursheet.prototype.states.DefaultState
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
@@ -98,14 +99,18 @@ class Controller(kodein: Kodein) {
                         val message = update.message()
 
                         if (message.chat().type() != Chat.Type.Private) {
-                            NewMessageContext(this@Controller, message).reply("""
-                                В группу я могу только срать обновлениями. 
-                                
-                                Администраторы группы могут добавить ренжей с информированием сюда в личке. ${"\uD83D\uDE0F"}
-                            """.trimIndent(), replyMarkup = buildInlineKeyboard {
-                                add(InlineKeyboardButton("\u2699️Настроить")
-                                        .url("tg://${me.user().username()}?start=${message.chat().id()}"))
-                            })
+                            if (message.newChatMembers() == null ||
+                                message.newChatMembers().any { it.id() == me.user().id() }) {
+
+                                NewMessageContext(this@Controller, message).reply("""
+                                    В группу я могу только срать обновлениями. 
+                                    
+                                    Администраторы группы могут добавить ренжей с информированием сюда в личке. ${"\uD83D\uDE0F"}
+                                """.trimIndent(), replyMarkup = buildInlineKeyboard {
+                                    add(InlineKeyboardButton("\u2699️Настроить")
+                                            .url("tg://resolve?domain=${me.user().username()}&start=${message.chat().id()}"))
+                                })
+                            }
                         } else {
                             val context = if (CommandContext.isCommand(message.text())) {
                                 CommandContext(this@Controller, message)
@@ -132,7 +137,7 @@ class Controller(kodein: Kodein) {
                         val button = sheetDao.getButton(callbackQuery.data())
 
                         if (button == null) {
-                            println("Warning! Can't find callback button ${callbackQuery.data()}")
+                            logger.warn("Can't find callback button ${callbackQuery.data()}")
                             bot.execute(AnswerCallbackQuery(callbackQuery.id()).text("Кнопка не найдена"))
                         } else {
                             val context = CallbackButtonContext(this@Controller, callbackQuery, button)
@@ -187,52 +192,56 @@ class Controller(kodein: Kodein) {
     }
 
     private suspend fun handleEvent(job: Range, event: DataEvent) {
-        println("Job #${job._id} received event $event")
-        val owner = sheetDao.getUserById(job.owner)
-            ?: throw IllegalStateException("Event for non-existent user ${job.owner}")
+        logger.info("Job #${job._id} received event $event")
+
+        val targetChatId = job.postTarget.chatId
 
         if (event is CellEvent) {
-            val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell)})"
+            val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell + 1)})"
             when (event) {
-                is AddTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is AddTextEvent -> bot.sendMessage(targetChatId, """
                     Добавлено значение в $cellString: ```
                     ${event.text}```
                 """.trimIndent())
-                is ModifyTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is ModifyTextEvent -> bot.sendMessage(targetChatId, """
                     Изменено значение в $cellString:
                     Старое:```
                     ${event.oldText}```
                     Новое:```
                     ${event.newText}```
                 """.trimIndent())
-                is RemoveTextEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is RemoveTextEvent -> bot.sendMessage(targetChatId, """
                     Удалено значение в $cellString:```
                     ${event.text}```
                 """.trimIndent())
-                is AddNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is AddNoteEvent -> bot.sendMessage(targetChatId, """
                     Добавлена заметка в $cellString: ```
                     ${event.note}```
                 """.trimIndent())
-                is ModifyNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
                     Изменена заметка в $cellString:
                     Старая:```
                     ${event.oldNote}```
                     Новая:```
                     ${event.newNote}```
                 """.trimIndent())
-                is RemoveNoteEvent -> bot.sendMessage(owner.userId.toLong(), """
+                is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
                     Удалена заметка в $cellString: ```
                     ${event.note}```
                 """.trimIndent())
             }
         }
     }
+
+    companion object {
+        val logger = createLogger<Controller>()
+    }
 }
 
 suspend fun main() {
+    val logger = LoggerFactory.getLogger("Main")
     Thread.setDefaultUncaughtExceptionHandler { t, e ->
-        println("UNHANDLED EXCEPTION\n$t $e")
-        e.printStackTrace()
+        logger.error("Unhandled exception on thread $t", e)
     }
 
     val module = SimpleModule()

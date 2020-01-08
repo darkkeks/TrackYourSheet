@@ -1,6 +1,7 @@
 .idea
 .gradle
 build
+logs
 
 local.env
 credentials.json

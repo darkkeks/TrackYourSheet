@@ -5,7 +5,7 @@ import org.litote.kmongo.Id
 import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 
-class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
+class RangeMenuState(val rangeId: Id<Range>) : MessageState() {
     override suspend fun draw(context: UserActionContext): MessageRender {
         // TODO Нормальная ошибка при исчезновении ренжика
         val range = context.controller.sheetDao.getJob(rangeId)

@@ -22,6 +22,10 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.2")
 
+    implementation("org.apache.logging.log4j", "log4j-slf4j-impl", "2.8.2")
+    implementation("org.apache.logging.log4j", "log4j-api", "2.8.2")
+    implementation("org.apache.logging.log4j", "log4j-core", "2.8.2")
+
     implementation("org.litote.kmongo:kmongo-coroutine:3.11.2")
 
     implementation("org.kodein.di:kodein-di-generic-jvm:6.5.0")
