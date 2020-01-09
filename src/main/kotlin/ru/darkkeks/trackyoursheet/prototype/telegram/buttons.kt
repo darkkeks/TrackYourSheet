@@ -25,7 +25,7 @@ class GoBackButton(state: MessageState) : StatefulButton(state)
 fun MessageState.goBackButton() = button("◀ Назад", GoBackButton(this))
 
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS)
 abstract class MessageState {
 
     @JsonIgnore
@@ -68,10 +68,10 @@ abstract class MessageState {
     }
 
     fun hijackGlobalState(context: UserActionContext, stateFromParentState: (GlobalUserState) -> GlobalUserState) {
-        val currentState = context.controller.getUserState(context.stateHolder)
+        val user = context.controller.getUser(context.userId)
             ?: throw IllegalStateException("No user global state")
-        val newState = stateFromParentState.invoke(currentState)
-        context.controller.changeState(context.stateHolder, newState)
+        val newState = stateFromParentState.invoke(user.globalState)
+        context.controller.changeState(context.userId, newState)
     }
 }
 

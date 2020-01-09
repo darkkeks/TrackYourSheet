@@ -1,10 +1,11 @@
 package ru.darkkeks.trackyoursheet.prototype.telegram
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton
 
 
-// TODO Persist user global state
-abstract class GlobalUserState(private val parentState: GlobalUserState? = null) {
+@JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS)
+abstract class GlobalUserState(val parentState: GlobalUserState? = null) {
 
     open suspend fun handleMessage(context: UserActionContext): Boolean = false
 

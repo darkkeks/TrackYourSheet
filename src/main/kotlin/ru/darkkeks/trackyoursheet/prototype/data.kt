@@ -13,12 +13,15 @@ import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.RangeData
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
+import ru.darkkeks.trackyoursheet.prototype.states.DefaultState
 import ru.darkkeks.trackyoursheet.prototype.telegram.CallbackButton
+import ru.darkkeks.trackyoursheet.prototype.telegram.GlobalUserState
 import java.time.Duration
 
-data class User(
+data class BotUser(
     val userId: Int,
-    val _id: Id<User> = newId()
+    val globalState: GlobalUserState = DefaultState(),
+    val _id: Id<BotUser> = newId()
 )
 
 data class PostTarget(
@@ -35,13 +38,13 @@ data class Range(
     val sheet: SheetData,
     val range: CellRange,
     val interval: TrackInterval,
-    val owner: Id<User>,
+    val owner: Id<BotUser>,
     val enabled: Boolean,
     val postTarget: PostTarget,
     val _id: Id<Range> = newId()
 )
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS)
 abstract class TrackInterval
 
 data class PeriodTrackInterval(val period: Long) : TrackInterval() {
@@ -55,7 +58,7 @@ data class PeriodTrackInterval(val period: Long) : TrackInterval() {
 
 class SheetTrackDao(kodein: Kodein) {
     val database: CoroutineDatabase by kodein.instance()
-    val users = database.getCollection<User>()
+    val users = database.getCollection<BotUser>()
     val jobs = database.getCollection<Range>()
     val rangeData = database.getCollection<RangeData>()
     val buttons = database.getCollection<CallbackButton>()
@@ -71,7 +74,7 @@ class SheetTrackDao(kodein: Kodein) {
         rangeData.save(data)
     }
 
-    suspend fun getUserJobs(id: Id<User>): List<Range> {
+    suspend fun getUserJobs(id: Id<BotUser>): List<Range> {
         return jobs.find(Range::owner eq id).toList()
     }
 
@@ -79,21 +82,21 @@ class SheetTrackDao(kodein: Kodein) {
 
     suspend fun getAllJobs() = jobs.find().toList()
 
-    suspend fun getOrCreateUser(userId: Int): User {
-        return getUser(userId) ?: User(userId).also {
+    suspend fun getOrCreateUser(userId: Int): BotUser {
+        return getUser(userId) ?: BotUser(userId).also {
             saveUser(it)
         }
     }
 
-    suspend fun getUser(userId: Int): User? {
-        return users.findOne(User::userId eq userId)
+    suspend fun getUser(userId: Int): BotUser? {
+        return users.findOne(BotUser::userId eq userId)
     }
 
-    suspend fun getUserById(id: Id<User>): User? {
+    suspend fun getUserById(id: Id<BotUser>): BotUser? {
         return users.findOneById(ObjectId(id.toString()))
     }
 
-    suspend fun saveUser(user: User) {
+    suspend fun saveUser(user: BotUser) {
         users.save(user)
     }
 

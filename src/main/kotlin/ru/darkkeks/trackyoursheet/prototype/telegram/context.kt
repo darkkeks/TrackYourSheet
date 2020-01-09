@@ -19,9 +19,6 @@ open class UserActionContext(val controller: Controller, val message: Message, v
     val userId: Int
         get() = user.id()
 
-    val stateHolder
-        get() = message.chat().id() to user.id()
-
     val bot get() = controller.bot
 
     suspend fun reply(text: String,
@@ -65,10 +62,10 @@ open class UserActionContext(val controller: Controller, val message: Message, v
         return controller.bot.execute(request)
     }
 
-    fun isPrivate() = message.chat().type() == Chat.Type.Private
+    private fun isPrivate() = message.chat().type() == Chat.Type.Private
 
     fun changeState(state: GlobalUserState) {
-        controller.changeState(stateHolder, state)
+        controller.changeState(userId, state)
     }
 }
 
@@ -96,8 +93,8 @@ class CommandContext(controller: Controller, message: Message) : NewMessageConte
 }
 
 class CallbackButtonContext(controller: Controller,
-                            val callbackQuery: CallbackQuery,
-                            val button: CallbackButton) :
+                            val button: CallbackButton,
+                            private val callbackQuery: CallbackQuery) :
         UserActionContext(controller, callbackQuery.message(), callbackQuery.from()) {
 
     var answered = false

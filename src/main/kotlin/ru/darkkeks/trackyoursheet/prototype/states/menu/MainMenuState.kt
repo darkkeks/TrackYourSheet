@@ -25,7 +25,7 @@ class MainMenuState : MessageState() {
         when (context.button) {
             is CreateNewRangeButton -> {
                 val state = NewRangeState()
-                context.controller.changeState(context.stateHolder, state)
+                context.controller.changeState(context.userId, state)
                 state.initiate(context)
             }
             is ListRangesButton -> {
