@@ -64,8 +64,8 @@ open class UserActionContext(val controller: Controller, val message: Message, v
 
     private fun isPrivate() = message.chat().type() == Chat.Type.Private
 
-    fun changeState(state: GlobalUserState) {
-        controller.changeState(userId, state)
+    suspend fun changeState(state: GlobalUserState) {
+        controller.changeState(this, state)
     }
 }
 

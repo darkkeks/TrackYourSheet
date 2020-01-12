@@ -67,11 +67,11 @@ abstract class MessageState {
         }
     }
 
-    fun hijackGlobalState(context: UserActionContext, stateFromParentState: (GlobalUserState) -> GlobalUserState) {
+    suspend fun hijackGlobalState(context: UserActionContext, stateFromParentState: (GlobalUserState) -> GlobalUserState) {
         val user = context.controller.getUser(context.userId)
             ?: throw IllegalStateException("No user global state")
         val newState = stateFromParentState.invoke(user.globalState)
-        context.controller.changeState(context.userId, newState)
+        context.controller.changeState(context, newState)
     }
 }
 

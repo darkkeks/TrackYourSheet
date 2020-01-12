@@ -36,7 +36,7 @@ class ReceiveGroupState(
         """.trimIndent())
     }
 
-    private fun done(context: UserActionContext) = toParentState(context)
+    private suspend fun done(context: UserActionContext) = toParentState(context)
 
     private suspend fun replacePostTarget(context: UserActionContext, target: PostTarget) {
         val range = context.controller.sheetDao.getJob(rangeId)

@@ -58,11 +58,9 @@ class SelectPostTargetState(
                 context.controller.sheetDao.saveJob(newRange)
                 changeState(RangeMenuState(rangeId), context)
             } else {
-                lateinit var state: ReceiveGroupState
                 hijackGlobalState(context) { parent ->
-                    ReceiveGroupState(rangeId, parent).also { state = it }
+                    ReceiveGroupState(rangeId, parent)
                 }
-                state.initiate(context)
             }
         } else if (context.button is GoBackButton) {
             changeState(RangeMenuState(rangeId), context)

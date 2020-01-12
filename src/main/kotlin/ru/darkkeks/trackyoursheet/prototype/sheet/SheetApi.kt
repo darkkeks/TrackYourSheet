@@ -75,8 +75,8 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
          *
          * First group in match is spreadsheet id. Second one (if present) is arguments without #, maybe blank.
          */
-        val URL_PATTERN =
-            """(?:https?:\/\/)?(?:www\.)?docs\.google\.com\/spreadsheets\/d\/([a-zA-Z\d-_]+)(?:\/edit)?(?:(?:#)(.+))?""".toRegex()
+        private val URL_PATTERN =
+            """(?:https?://)?(?:www\.)?docs\.google\.com/spreadsheets/d/([a-zA-Z\d-_]+)(?:/edit)?(?:\?[^#]*)?(?:#(.+))?""".toRegex()
 
         data class SheetUrlMatchResult(val id: String, val arguments: Map<String, String> = emptyMap())
 

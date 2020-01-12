@@ -7,22 +7,24 @@ import ru.darkkeks.trackyoursheet.prototype.PostTarget
 import ru.darkkeks.trackyoursheet.prototype.Range
 import ru.darkkeks.trackyoursheet.prototype.sheet.CellRange
 import ru.darkkeks.trackyoursheet.prototype.sheet.SheetData
+import ru.darkkeks.trackyoursheet.prototype.states.menu.RangeMenuState
 import ru.darkkeks.trackyoursheet.prototype.telegram.*
 import java.time.Duration
 
-class NewRangeState : GlobalUserState(DefaultState()) {
+class NewRangeState : GlobalUserState() {
 
     var spreadsheetId: String? = null
-    var sheet: Sheet? = null
+    var sheetId: Int? = null
+    var sheetTitle: String? = null
     var range: CellRange? = null
 
-    suspend fun initiate(context: UserActionContext) {
+    override suspend fun onEnter(context: UserActionContext) {
         context.forceReply("""
             Окей, ща создадим, сейчас мне от тебя нужна ссылка на табличку.
 
             Можешь сразу дать ссылку на нужный ренж (выделить в гугл табличке -> пкм -> получить ссылку на этот диапазон).
             
-            Либо просто ссылку на нужную таблчику/лист.
+            Либо просто ссылку на нужную таблчику, а я помогу выбрать лист и ренж.
 
             Выглядит она вот так:
             ```https://docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-asdfghjklasdfdsaf/edit#gid=13371488228&range=A1:Z22```
@@ -33,7 +35,9 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         Это не ссылка :(
         
         Чтобы отменить создание ренжика можно написать /cancel или нажать на кнопку ниже.
-    """.trimIndent())
+    """.trimIndent(), replyMarkup = buildInlineKeyboard {
+        row(button("❌ Отмена", context, CancelButton()))
+    })
 
     override suspend fun handleMessage(context: UserActionContext) = handle(context) {
         val text = context.message.text()
@@ -51,11 +55,13 @@ class NewRangeState : GlobalUserState(DefaultState()) {
             val sheets = context.controller.sheetApi.getSheets(id)
 
             if ("gid" in arguments) {
-                sheet = sheets.find {
+                val sheet = sheets.find {
                     it.properties.sheetId.toString() == arguments["gid"]
                 }
 
                 if (sheet != null && "range" in arguments) {
+                    sheetId = sheet.properties.sheetId
+                    sheetTitle = sheet.properties.title
                     val rangeString = arguments.getValue("range")
                     if (CellRange.isRange(rangeString)) {
                         range = CellRange.fromString(rangeString)
@@ -65,7 +71,7 @@ class NewRangeState : GlobalUserState(DefaultState()) {
                 }
             }
 
-            if (sheet != null) {
+            if (sheetId != null) {
                 context.forceReply("""
                     Вижу табличку и лист, осталось указать какой ренж трекать. Напиши вот в таком формате: `A2:BE26`.
                 """.trimIndent())
@@ -74,9 +80,8 @@ class NewRangeState : GlobalUserState(DefaultState()) {
                     Вижу [табличку](${SheetData(id, 0).sheetUrl}), теперь надо выбрать один из листов.
                 """.trimIndent(), replyMarkup = createSheetSelectKeyboard(sheets, context))
             }
-        } else if (spreadsheetId == null || sheet == null) {
+        } else if (spreadsheetId == null || sheetId == null) {
             notALink(context)
-            return@handle
         } else if (CellRange.isRange(text)) {
             range = CellRange.fromString(text)
             finish(context)
@@ -91,11 +96,11 @@ class NewRangeState : GlobalUserState(DefaultState()) {
         val dao = context.controller.sheetDao
         val user = dao.getOrCreateUser(context.userId)
 
-        val sheetData = SheetData(spreadsheetId!!, sheet!!.properties.sheetId, sheet!!.properties.title)
+        val sheetData = SheetData(spreadsheetId!!, sheetId!!, sheetTitle!!)
         val trackJob = Range(
             sheetData,
             range!!,
-            PeriodTrackInterval(Duration.ofSeconds(10)),
+            PeriodTrackInterval(Duration.ofSeconds(30)),
             user._id,
             true,
             PostTarget.private(user.userId)
@@ -104,19 +109,20 @@ class NewRangeState : GlobalUserState(DefaultState()) {
 
         context.controller.startJob(trackJob)
 
-        toParentState(context)
-
         context.reply("""
-            Готово, буду трекать ренж [${range!!}](${sheetData.urlTo(range!!)}) на листе `${sheet!!.properties.title}`.
+            Готово, буду трекать ренж [${range!!}](${sheetData.urlTo(range!!)}) на листе `$sheetTitle`.
         """.trimIndent())
+
+        RangeMenuState(trackJob._id).send(context)
+        context.changeState(DefaultState())
     }
 
     override suspend fun handleCommand(context: CommandContext): Boolean {
         when (context.command) {
             "cancel" -> {
                 val state = DefaultState()
-                state.startMessage(context)
                 context.changeState(state)
+                state.initiate(context)
             }
             else -> return false
         }
@@ -130,24 +136,30 @@ class NewRangeState : GlobalUserState(DefaultState()) {
                 if (finalSpreadsheetId != null) {
                     val sheets = context.controller.sheetApi.getSheets(finalSpreadsheetId)
 
-                    sheet = sheets.find {
+                    val sheet = sheets.find {
                         it.properties.sheetId == button.sheetId
                     }
 
                     if (sheet != null) {
+                        sheetId = sheet.properties.sheetId
+                        sheetTitle = sheet.properties.title
                         context.forceReply("""
                             Вижу табличку и лист, осталось указать какой ренж трекать. Напиши вот в таком формате: `A2:BE26`.
                         """.trimIndent())
                         context.answerCallbackQuery()
                     } else {
                         context.answerCallbackQuery("Такого листа нет, попробуй еще раз.")
-                        context.bot.execute(EditMessageReplyMarkup(context.message.chat().id(),
-                                                                   context.message.messageId())
+                        context.bot.execute(EditMessageReplyMarkup(context.message.chat().id(), context.message.messageId())
                                                 .replyMarkup(createSheetSelectKeyboard(sheets, context)))
                     }
                 } else {
                     context.answerCallbackQuery("Сначала дай ссылку на таблицу")
                 }
+            }
+            is CancelButton -> {
+                val state = DefaultState()
+                context.changeState(state)
+                state.initiate(context)
             }
             else -> Unit
         }
@@ -160,4 +172,5 @@ class NewRangeState : GlobalUserState(DefaultState()) {
     }
 
     class SheetSelectButton(val sheetId: Int) : GlobalStateButton()
+    class CancelButton() : GlobalStateButton()
 }

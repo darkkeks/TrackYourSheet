@@ -7,13 +7,15 @@ import com.pengrad.telegrambot.model.request.InlineKeyboardButton
 @JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS)
 abstract class GlobalUserState(val parentState: GlobalUserState? = null) {
 
+    open suspend fun onEnter(context: UserActionContext) = Unit
+
     open suspend fun handleMessage(context: UserActionContext): Boolean = false
 
     open suspend fun handleCommand(context: CommandContext): Boolean = false
 
     open suspend fun handleCallback(context: CallbackButtonContext) {}
 
-    fun toParentState(context: UserActionContext) {
+    suspend fun toParentState(context: UserActionContext) {
         if (parentState != null) {
             context.changeState(parentState)
         }

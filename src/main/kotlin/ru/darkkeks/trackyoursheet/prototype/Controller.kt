@@ -126,9 +126,10 @@ class Controller(kodein: Kodein) {
         return userStates[userId]
     }
 
-    fun changeState(userId: Int, state: GlobalUserState) {
-        val user = userStates[userId] ?: return
-        userStates[userId] = user.copy(globalState = state)
+    suspend fun changeState(context: UserActionContext, state: GlobalUserState) {
+        val user = userStates[context.userId] ?: return
+        userStates[context.userId] = user.copy(globalState = state)
+        state.onEnter(context)
     }
 
     private suspend fun saveUser(userId: Int) {
