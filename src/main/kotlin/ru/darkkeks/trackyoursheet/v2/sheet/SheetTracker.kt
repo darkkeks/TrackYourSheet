@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype.sheet
+package ru.darkkeks.trackyoursheet.v2.sheet
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -7,10 +7,10 @@ import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
-import ru.darkkeks.trackyoursheet.prototype.PeriodTrackInterval
-import ru.darkkeks.trackyoursheet.prototype.SheetTrackDao
-import ru.darkkeks.trackyoursheet.prototype.Range
-import kotlin.IllegalStateException
+import ru.darkkeks.trackyoursheet.v2.PeriodTrackInterval
+import ru.darkkeks.trackyoursheet.v2.Range
+import ru.darkkeks.trackyoursheet.v2.SheetTrackDao
+import ru.darkkeks.trackyoursheet.v2.buildList
 
 
 class SheetTracker(kodein: Kodein) {
@@ -72,22 +72,4 @@ class SheetTracker(kodein: Kodein) {
 
         trackDao.saveData(newData)
     }
-}
-
-class ListBuilder<T> {
-    private val result = mutableListOf<T>()
-
-    fun add(vararg values: T) {
-        values.forEach {
-            result.add(it)
-        }
-    }
-
-    fun build() = result.toList()
-}
-
-inline fun <T> buildList(block: ListBuilder<T>.() -> Unit): List<T> {
-    val builder = ListBuilder<T>()
-    builder.block()
-    return builder.build()
 }

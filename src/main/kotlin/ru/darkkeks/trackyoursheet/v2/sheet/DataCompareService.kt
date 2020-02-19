@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype.sheet
+package ru.darkkeks.trackyoursheet.v2.sheet
 
 import com.google.api.services.sheets.v4.model.Sheet
 import kotlin.math.max

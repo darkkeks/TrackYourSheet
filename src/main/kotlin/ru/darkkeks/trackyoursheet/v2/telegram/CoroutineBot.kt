@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype.telegram
+package ru.darkkeks.trackyoursheet.v2.telegram
 
 import com.pengrad.telegrambot.Callback
 import com.pengrad.telegrambot.TelegramBot
@@ -15,7 +15,7 @@ import com.pengrad.telegrambot.response.SendResponse
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import ru.darkkeks.trackyoursheet.prototype.BOT_TOKEN
+import ru.darkkeks.trackyoursheet.v2.BOT_TOKEN
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -36,21 +36,6 @@ class CoroutineBot {
 
             awaitClose()
         }
-    }
-
-    suspend fun sendMessage(chatId: Long, text: String,
-                      disableWebPagePreview: Boolean = true,
-                      replyMarkup: Keyboard? = null,
-                      parseMode: ParseMode? = ParseMode.Markdown,
-                      disableNotification: Boolean = false): SendResponse {
-        val request = SendMessage(chatId, text)
-            .disableWebPagePreview(disableWebPagePreview)
-            .parseMode(parseMode)
-            .disableNotification(disableNotification)
-        if (replyMarkup != null) {
-            request.replyMarkup(replyMarkup)
-        }
-        return execute(request)
     }
 
     /**
@@ -74,11 +59,12 @@ class CoroutineBot {
     }
 
     suspend fun <T : BaseRequest<T, R>, R : BaseResponse> execute(request: T): R {
+        val stackTrace = getStackTrace()
         val result = executeUnsafe(request)
 
         if (!result.isOk) {
             val message = "${request.method} failed with error_code ${result.errorCode()}: ${result.description()}"
-            throw TelegramException(message, result)
+            throw stackTrace.initCause(TelegramException(message, result))
         }
 
         return result

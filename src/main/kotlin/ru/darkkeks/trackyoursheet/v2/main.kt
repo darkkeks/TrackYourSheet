@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype
+package ru.darkkeks.trackyoursheet.v2
 
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
@@ -17,7 +17,8 @@ import org.litote.kmongo.coroutine.coroutine
 import org.litote.kmongo.reactivestreams.KMongo
 import org.litote.kmongo.util.KMongoConfiguration
 import org.slf4j.LoggerFactory
-import ru.darkkeks.trackyoursheet.prototype.sheet.*
+import ru.darkkeks.trackyoursheet.v2.sheet.*
+import ru.darkkeks.trackyoursheet.v2.telegram.Controller
 
 val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: ""
 
@@ -63,6 +64,5 @@ suspend fun main() {
         .addKeyDeserializer(Cell::class.java, CellKeyDeserializer())
     KMongoConfiguration.registerBsonModule(module)
 
-    val controller = Controller(kodein)
-    controller.start()
+    Controller(kodein).start()
 }

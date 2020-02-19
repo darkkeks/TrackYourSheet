@@ -1,10 +1,10 @@
-package ru.darkkeks.trackyoursheet.prototype.sheet
+package ru.darkkeks.trackyoursheet.v2.sheet
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.google.api.services.sheets.v4.model.GridData
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
-import ru.darkkeks.trackyoursheet.prototype.Range
+import ru.darkkeks.trackyoursheet.v2.Range
 import java.time.Instant
 
 class RangeData {

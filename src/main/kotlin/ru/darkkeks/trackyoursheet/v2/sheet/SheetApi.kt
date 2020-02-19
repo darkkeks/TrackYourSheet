@@ -1,4 +1,4 @@
-package ru.darkkeks.trackyoursheet.prototype.sheet
+package ru.darkkeks.trackyoursheet.v2.sheet
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.core.JsonGenerator
