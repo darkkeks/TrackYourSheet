@@ -10,10 +10,10 @@ import org.litote.kmongo.eq
 import ru.darkkeks.trackyoursheet.v2.sheet.RangeData
 
 class SheetTrackDao(kodein: Kodein) {
-    val database: CoroutineDatabase by kodein.instance()
-    val users = database.getCollection<BotUser>()
-    val jobs = database.getCollection<Range>()
-    val rangeData = database.getCollection<RangeData>()
+    private val database: CoroutineDatabase by kodein.instance()
+    private val users = database.getCollection<UserModel>()
+    private val jobs = database.getCollection<Range>()
+    private val rangeData = database.getCollection<RangeData>()
 
     suspend fun getLastData(id: Id<Range>): RangeData? {
         return rangeData.find(RangeData::job eq id)
@@ -26,7 +26,7 @@ class SheetTrackDao(kodein: Kodein) {
         rangeData.save(data)
     }
 
-    suspend fun getUserJobs(id: Id<BotUser>): List<Range> {
+    suspend fun getUserJobs(id: Id<UserModel>): List<Range> {
         return jobs.find(Range::owner eq id).toList()
     }
 
@@ -34,21 +34,21 @@ class SheetTrackDao(kodein: Kodein) {
 
     suspend fun getAllJobs() = jobs.find().toList()
 
-    suspend fun getOrCreateUser(userId: Int): BotUser {
-        return getUser(userId) ?: BotUser(userId).also {
+    suspend fun getOrCreateUser(userId: Int): UserModel {
+        return getUser(userId) ?: UserModel(userId).also {
             saveUser(it)
         }
     }
 
-    suspend fun getUser(userId: Int): BotUser? {
-        return users.findOne(BotUser::userId eq userId)
+    suspend fun getUser(userId: Int): UserModel? {
+        return users.findOne(UserModel::userId eq userId)
     }
 
-    suspend fun getUserById(id: Id<BotUser>): BotUser? {
+    suspend fun getUserById(id: Id<UserModel>): UserModel? {
         return users.findOneById(ObjectId(id.toString()))
     }
 
-    suspend fun saveUser(user: BotUser) {
+    suspend fun saveUser(user: UserModel) {
         users.save(user)
     }
 

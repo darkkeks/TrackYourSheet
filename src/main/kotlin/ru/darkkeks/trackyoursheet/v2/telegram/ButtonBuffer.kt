@@ -102,23 +102,3 @@ fun ButtonBuffer.pushInt(value: Int) {
         pushByte(((value ushr it) and 0xFF).toByte())
     }
 }
-
-//inline fun <reified T> ButtonBuffer.pop(): T = when (T::class) {
-//    Byte::class -> popByte() as T
-//    Int::class -> popInt() as T
-//    else -> throw UnsupportedOperationException("Invalid type ${T::class}")
-//}
-
-fun main() {
-    val buffer = ButtonBuffer()
-    repeat(10) {
-        val value = Random.nextInt()
-        println("Pushing $value")
-        buffer.pushInt(value)
-    }
-    val s = buffer.toString()
-    val b = ButtonBuffer(s)
-    repeat(10) {
-        println("Received ${b.popInt()}")
-    }
-}

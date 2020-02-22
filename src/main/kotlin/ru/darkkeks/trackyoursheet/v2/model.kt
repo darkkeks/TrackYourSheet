@@ -9,10 +9,10 @@ import ru.darkkeks.trackyoursheet.v2.sheet.SheetData
 import ru.darkkeks.trackyoursheet.v2.telegram.GlobalState
 import java.time.Duration
 
-class BotUser(
+data class UserModel(
     val userId: Int,
     val state: GlobalState = DefaultState(),
-    val _id: Id<BotUser> = newId()
+    val _id: Id<UserModel> = newId()
 )
 
 data class PostTarget(
@@ -29,7 +29,7 @@ data class Range(
     val sheet: SheetData,
     val range: CellRange,
     val interval: TrackInterval,
-    val owner: Id<BotUser>,
+    val owner: Id<UserModel>,
     val enabled: Boolean,
     val postTarget: PostTarget,
     val _id: Id<Range> = newId()
@@ -43,7 +43,7 @@ data class PeriodTrackInterval(val period: Long) : TrackInterval() {
 
     constructor(duration: Duration) : this(duration.seconds)
 
-    fun asDuration() = Duration.ofSeconds(period)
+    fun asDuration(): Duration = Duration.ofSeconds(period)
 
     override fun toString(): String = TimeUnits.durationToString(asDuration())
 }

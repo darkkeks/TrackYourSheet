@@ -18,7 +18,6 @@ import org.litote.kmongo.reactivestreams.KMongo
 import org.litote.kmongo.util.KMongoConfiguration
 import org.slf4j.LoggerFactory
 import ru.darkkeks.trackyoursheet.v2.sheet.*
-import ru.darkkeks.trackyoursheet.v2.telegram.Controller
 
 val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: ""
 

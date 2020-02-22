@@ -1,14 +1,15 @@
 package ru.darkkeks.trackyoursheet.v2
 
+import org.litote.kmongo.Id
 import ru.darkkeks.trackyoursheet.v2.telegram.*
 
 class DefaultState : GlobalState() {
     override val handlerList = buildHandlerList {
-        command("new_range") {
-            send("Her")
-        }
         command("list_ranges") {
-            send("Zalupa")
+            RangeListState().send(this)
+        }
+        command("new_range") {
+            changeGlobalState(NewRangeState())
         }
         fallback {
             MainMenuState().send(this)
@@ -36,8 +37,39 @@ class MainMenuState: MessageState() {
 
 
     override val handlerList = buildHandlerList {
-        callback<CreateNewRangeButton> { send("1") }
-        callback<ListRangesButton> { send("2") }
-        callback<SettingsButton> { send("3") }
+        callback<CreateNewRangeButton> {  }
+        callback<ListRangesButton> { changeState(RangeListState()) }
+    }
+}
+
+class RangeListState : MessageState() {
+    class RangeButton(val range: Id<Range>, label: String) : TextButton(label)
+
+    override suspend fun draw(context: BaseContext): MessageRender {
+        val user = context.controller.dao.getOrCreateUser(context.userId)
+        val ranges = context.controller.dao.getUserJobs(user._id)
+
+        return if (ranges.isEmpty()) {
+            TextRender("У вас нету ренжей \uD83D\uDE1E", buildInlineKeyboard {
+                row(GoBackButton())
+            })
+        } else {
+            TextRender("Ваши ренжи:", buildInlineKeyboard {
+                for (range in ranges) {
+                    row(RangeButton(range._id, "${range.sheet.sheetName}!${range.range}"))
+                }
+                row(GoBackButton())
+            })
+        }
+    }
+
+    override val handlerList = buildHandlerList {
+
+    }
+}
+
+class NewRangeState: GlobalState() {
+    override val handlerList = buildHandlerList {
+
     }
 }

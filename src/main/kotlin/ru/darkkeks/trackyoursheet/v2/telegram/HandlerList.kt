@@ -68,28 +68,34 @@ class HandlerListBuilder {
         HandlerResultSuccess()
     }
 
+    fun onEnterHandler(block: HandlerBlock<EnterStateContext>) = add(Handler(block))
+
+    fun onEnter(block: suspend EnterStateContext.() -> Unit) = onEnterHandler {
+        block()
+        HandlerResultSuccess()
+    }
+
     fun textHandler(block: HandlerBlock<NewMessageContext>)= add(Handler(block))
 
     fun commandHandler(block: HandlerBlock<CommandContext>) = add(Handler(block))
 
-    fun commandHandler(target: String, block: HandlerBlock<CommandContext>) = add(Handler<CommandContext> {
-        if (command == target) {
+    fun commandHandler(vararg target: String, block: HandlerBlock<CommandContext>) = add(Handler<CommandContext> {
+        if (command in target) {
             this.block()
         } else {
             HandlerResultPassThrough()
         }
     })
 
-    fun command(target: String, block: suspend CommandContext.() -> Unit) = commandHandler(target) {
+    fun command(vararg target: String, block: suspend CommandContext.() -> Unit) = commandHandler(*target) {
         block()
         HandlerResultSuccess()
     }
 
     fun <T : CallbackButton> callbackHandler(klass: KClass<T>, block: HandlerBlock<CallbackButtonContext<T>>) {
-        add(Handler<CallbackButtonContext<CallbackButton>> {
+        add(Handler<CallbackButtonContext<T>> {
             if (klass.isInstance(button)) {
-                @Suppress("UNCHECKED_CAST")
-                (this as CallbackButtonContext<T>).block()
+                block()
             } else {
                 HandlerResultPassThrough()
             }
