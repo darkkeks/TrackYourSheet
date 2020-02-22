@@ -1,5 +1,7 @@
 package ru.darkkeks.trackyoursheet.v2.telegram
 
+import org.litote.kmongo.Id
+import org.litote.kmongo.id.StringId
 import ru.darkkeks.trackyoursheet.v2.buildList
 import kotlin.random.Random
 
@@ -31,6 +33,11 @@ class ButtonBuffer(value: String = "") {
                 add(popByte())
             }
         }
+    }
+
+    fun peekBytes(count: Int): List<Byte> {
+        require(count <= bytes.size)
+        return bytes.subList(bytes.size - count, bytes.size).reversed()
     }
 
     override fun toString(): String {
@@ -88,12 +95,19 @@ class ButtonBuffer(value: String = "") {
 
 fun Byte.toUnsigned() = if (this >= 0) this.toInt() else 256 + this.toInt()
 
-fun ButtonBuffer.popInt(): Int {
-    val (a, b, c, d) = popBytes(4)
+
+fun ButtonBuffer.peekInt(): Int {
+    val (a, b, c, d) = peekBytes(4)
     return (a.toUnsigned() shl 24) or
             (b.toUnsigned() shl 16) or
             (c.toUnsigned() shl 8) or
             d.toUnsigned()
+}
+
+fun ButtonBuffer.popInt(): Int {
+    val result = peekInt()
+    repeat(4) { popByte() }
+    return result
 }
 
 fun ButtonBuffer.pushInt(value: Int) {
@@ -102,3 +116,32 @@ fun ButtonBuffer.pushInt(value: Int) {
         pushByte(((value ushr it) and 0xFF).toByte())
     }
 }
+
+
+fun ButtonBuffer.peekBoolean(): Boolean = peekByte() != 0.toByte()
+fun ButtonBuffer.popBoolean(): Boolean = popByte() != 0.toByte()
+fun ButtonBuffer.pushBoolean(value: Boolean) = pushByte(if(value) 1 else 0)
+
+
+fun ButtonBuffer.peekString(): String {
+    val length = peekByte().toInt()
+    val result = peekBytes(length)
+    return String(result.toByteArray())
+}
+
+fun ButtonBuffer.popString(): String {
+    val length = popByte().toInt()
+    val result = popBytes(length)
+    return String(result.toByteArray())
+}
+
+fun ButtonBuffer.pushString(value: String) {
+    val bytes = value.toByteArray()
+    pushByte(bytes.size.toByte())
+    bytes.forEach { pushByte(it) }
+}
+
+
+fun <T> ButtonBuffer.peekId() = StringId<T>(peekString())
+fun <T> ButtonBuffer.popId() = StringId<T>(popString())
+fun <T> ButtonBuffer.pushId(value: Id<T>) = pushString(value.toString())

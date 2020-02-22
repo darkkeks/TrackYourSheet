@@ -39,7 +39,9 @@ class MainMenuState : MessageState() {
 }
 
 class RangeListState : MessageState() {
-    class RangeButton(val rangeId: Id<Range>, label: String) : TextButton(label)
+    class RangeButton(val rangeId: Id<Range>, label: String) : TextButton(label) {
+        override fun serialize(buffer: ButtonBuffer) = buffer.pushId(rangeId)
+    }
 
     override suspend fun draw(context: BaseContext): MessageRender {
         val user = context.controller.repository.getOrCreateUser(context.userId)
@@ -66,14 +68,15 @@ class RangeListState : MessageState() {
 }
 
 class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
-    class PostTargetButton(range: Range) : TextButton("\uD83D\uDCDD Куда постим: ${range.postTarget.name}")
+    class PostTargetButton(name: String) : TextButton("\uD83D\uDCDD Куда постим: $name")
 
     class DeleteButton : TextButton("\uD83D\uDDD1 Удалить")
 
-    class IntervalButton(range: Range) : TextButton("⏱ Интервал: ${range.interval}")
+    class IntervalButton(interval: TrackInterval) : TextButton("⏱ Интервал: $interval")
 
-    class ToggleEnabledButton(range: Range, val target: Boolean = range.enabled.not())
-        : TextButton(if (range.enabled) "✅ Включено" else "❌ Выключено")
+    class ToggleEnabledButton(val target: Boolean) : TextButton(if (target.not()) "✅ Включено" else "❌ Выключено") {
+        override fun serialize(buffer: ButtonBuffer) = buffer.pushBoolean(target)
+    }
 
     override suspend fun draw(context: BaseContext): MessageRender {
         val range = context.controller.repository.getRange(rangeId)
@@ -89,10 +92,10 @@ class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
             Лист: [${range.sheet.sheetName}](${range.sheet.sheetUrl})
             Ренж: [${range.range}](${range.sheet.urlTo(range.range)})
         """.trimIndent(), buildInlineKeyboard {
-            add(ToggleEnabledButton(range))
-            add(IntervalButton(range))
+            add(ToggleEnabledButton(range.enabled.not()))
+            add(IntervalButton(range.interval))
             newRow()
-            add(PostTargetButton(range))
+            add(PostTargetButton(range.postTarget.name))
             add(DeleteButton())
             newRow()
             row(GoBackButton())
@@ -127,7 +130,10 @@ class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
 
 class SelectPostTargetState(private var rangeId: Id<Range>) : MessageState() {
     class PostTargetButton(val target: Chat.Type)
-        : TextButton(if (target == Chat.Type.Private) "Постить сюда" else "Постить в группу/канал")
+        : TextButton(if (target == Chat.Type.Private) "Постить сюда" else "Постить в группу/канал") {
+
+        override fun serialize(buffer: ButtonBuffer) = buffer.pushByte(target.ordinal.toByte())
+    }
 
     override suspend fun draw(context: BaseContext): MessageRender {
         val range = context.controller.repository.getRange(rangeId)
@@ -173,7 +179,10 @@ class SelectPostTargetState(private var rangeId: Id<Range>) : MessageState() {
 
 class SelectIntervalState(private var rangeId: Id<Range>) : MessageState() {
     class IntervalButton(val duration: Duration)
-        : TextButton("\uD83D\uDD53 " + TimeUnits.durationToString(duration))
+        : TextButton("\uD83D\uDD53 " + TimeUnits.durationToString(duration)) {
+
+        override fun serialize(buffer: ButtonBuffer) = buffer.pushInt(duration.toSeconds().toInt())
+    }
 
     override suspend fun draw(context: BaseContext) = TextRender("""
         Выберите как часто проверять ренж на обновления
@@ -221,7 +230,9 @@ class SelectIntervalState(private var rangeId: Id<Range>) : MessageState() {
 }
 
 class ConfirmDeletionState(private var rangeId: Id<Range>) : MessageState() {
-    class ConfirmButton(val confirm: Boolean) : TextButton(if (confirm) "\u2705 Да" else "\u274C Нет")
+    class ConfirmButton(val confirm: Boolean) : TextButton(if (confirm) "\u2705 Да" else "\u274C Нет") {
+        override fun serialize(buffer: ButtonBuffer) = buffer.pushBoolean(confirm)
+    }
 
     override suspend fun draw(context: BaseContext) = TextRender("""
         Вы уверены, что хотите удалить ренжик?))))))

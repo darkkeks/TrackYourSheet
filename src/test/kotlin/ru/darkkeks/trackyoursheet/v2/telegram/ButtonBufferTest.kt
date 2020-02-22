@@ -84,6 +84,24 @@ internal class ButtonBufferTest : AnnotationSpec() {
         result.popInt() shouldBe -123123123
     }
 
+    @Test
+    fun pushStringPopStringSimple() {
+        val buffer = ButtonBuffer()
+        val value = "Simple test string"
+        buffer.pushString(value)
+        val result = passThroughString(buffer)
+        result.popString() shouldBe value
+    }
+
+    @Test
+    fun pushStringPopStringSpecial() {
+        val buffer = ButtonBuffer()
+        val value = "Сложная \uD83D\uDE48 строка \uD83D\uDE0E"
+        buffer.pushString(value)
+        val result = passThroughString(buffer)
+        result.popString() shouldBe value
+    }
+
     private fun passThroughString(buffer: ButtonBuffer): ButtonBuffer {
         return ButtonBuffer(buffer.toString())
     }
