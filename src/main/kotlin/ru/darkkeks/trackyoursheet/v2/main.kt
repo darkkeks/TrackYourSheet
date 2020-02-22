@@ -47,8 +47,8 @@ val kodein = Kodein {
             .getDatabase("track_your_sheet")
     }
 
-    bind<SheetTrackDao>() with singleton {
-        SheetTrackDao(kodein)
+    bind<SheetTrackRepository>() with singleton {
+        SheetTrackRepository(kodein)
     }
 }
 

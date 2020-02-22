@@ -3,10 +3,12 @@ package ru.darkkeks.trackyoursheet.v2
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
+import ru.darkkeks.trackyoursheet.v2.sheet.*
 import ru.darkkeks.trackyoursheet.v2.telegram.*
 
 
@@ -14,9 +16,13 @@ class Controller(kodein: Kodein) {
 
     val bot = CoroutineBot()
 
-    val dao: SheetTrackDao by kodein.instance()
+    val sheetApi: SheetApi by kodein.instance()
+
+    val repository: SheetTrackRepository by kodein.instance()
 
     val registry = Registry()
+
+    val tracker = SheetTracker(kodein)
 
     val scope = CoroutineScope(SupervisorJob())
 
@@ -31,7 +37,7 @@ class Controller(kodein: Kodein) {
                         val message = update.message()
                         val userId = message.from().id()
 
-                        val user = dao.getOrCreateUser(userId)
+                        val user = repository.getOrCreateUser(userId)
                         val botUser = BotUser(message.from(), user)
 
                         val context = when {
@@ -52,7 +58,7 @@ class Controller(kodein: Kodein) {
                         val buffer = ButtonBuffer(query.data())
 
                         val userId = query.from().id()
-                        val user = dao.getOrCreateUser(userId)
+                        val user = repository.getOrCreateUser(userId)
                         val botUser = BotUser(query.from(), user)
 
                         val state = registry.states.read(buffer)
@@ -79,9 +85,61 @@ class Controller(kodein: Kodein) {
         }
     }
 
-    suspend fun saveUser() {
-
+    fun startRange(range: Range) {
+        scope.launch {
+            tracker.addJob(range).consumeEach { event ->
+                handleEvent(range, event)
+            }
+        }
     }
+
+    fun stopRange(range: Range) {
+        tracker.removeJob(range)
+    }
+
+    private suspend fun handleEvent(job: Range, event: DataEvent) {
+        logger.info("Job #${job._id} received event $event")
+
+        val targetChatId = job.postTarget.chatId
+
+        if (event is CellEvent) {
+            val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell + 1)})"
+            when (event) {
+                // TODO
+//                is AddTextEvent -> bot.sendMessage(targetChatId, """
+//                    Добавлено значение в $cellString: ```
+//                    ${event.text}```
+//                """.trimIndent())
+//                is ModifyTextEvent -> bot.sendMessage(targetChatId, """
+//                    Изменено значение в $cellString:
+//                    Старое:```
+//                    ${event.oldText}```
+//                    Новое:```
+//                    ${event.newText}```
+//                """.trimIndent())
+//                is RemoveTextEvent -> bot.sendMessage(targetChatId, """
+//                    Удалено значение в $cellString:```
+//                    ${event.text}```
+//                """.trimIndent())
+//                is AddNoteEvent -> bot.sendMessage(targetChatId, """
+//                    Добавлена заметка в $cellString: ```
+//                    ${event.note}```
+//                """.trimIndent())
+//                is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
+//                    Изменена заметка в $cellString:
+//                    Старая:```
+//                    ${event.oldNote}```
+//                    Новая:```
+//                    ${event.newNote}```
+//                """.trimIndent())
+//                is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
+//                    Удалена заметка в $cellString: ```
+//                    ${event.note}```
+//                """.trimIndent())
+            }
+        }
+    }
+
 
     companion object {
         val logger = createLogger<Controller>()

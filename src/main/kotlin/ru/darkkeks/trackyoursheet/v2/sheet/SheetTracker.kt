@@ -9,7 +9,7 @@ import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import ru.darkkeks.trackyoursheet.v2.PeriodTrackInterval
 import ru.darkkeks.trackyoursheet.v2.Range
-import ru.darkkeks.trackyoursheet.v2.SheetTrackDao
+import ru.darkkeks.trackyoursheet.v2.SheetTrackRepository
 import ru.darkkeks.trackyoursheet.v2.buildList
 
 
@@ -19,7 +19,7 @@ class SheetTracker(kodein: Kodein) {
 
     private val sheetApi: SheetApi by kodein.instance()
 
-    private val trackDao: SheetTrackDao by kodein.instance()
+    private val trackRepository: SheetTrackRepository by kodein.instance()
 
     private val jobs: MutableMap<Id<Range>, ReceiveChannel<DataEvent>> = mutableMapOf()
 
@@ -61,7 +61,7 @@ class SheetTracker(kodein: Kodein) {
         } ?: throw IllegalStateException("No sheet with id ${job.sheet.id} in response")
         val grid = sheet.data[0]
 
-        val oldData = trackDao.getLastData(job._id)
+        val oldData = trackRepository.getLastData(job._id)
         val newData = RangeData(grid, job._id, _id = oldData?._id ?: newId())
 
         if (oldData == null) {
@@ -70,6 +70,6 @@ class SheetTracker(kodein: Kodein) {
             dataCompareService.compare(sheet, oldData, newData) { add(it) }
         }
 
-        trackDao.saveData(newData)
+        trackRepository.saveData(newData)
     }
 }

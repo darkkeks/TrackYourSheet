@@ -9,10 +9,10 @@ import org.litote.kmongo.descending
 import org.litote.kmongo.eq
 import ru.darkkeks.trackyoursheet.v2.sheet.RangeData
 
-class SheetTrackDao(kodein: Kodein) {
+class SheetTrackRepository(kodein: Kodein) {
     private val database: CoroutineDatabase by kodein.instance()
     private val users = database.getCollection<UserModel>()
-    private val jobs = database.getCollection<Range>()
+    private val ranges = database.getCollection<Range>()
     private val rangeData = database.getCollection<RangeData>()
 
     suspend fun getLastData(id: Id<Range>): RangeData? {
@@ -26,13 +26,13 @@ class SheetTrackDao(kodein: Kodein) {
         rangeData.save(data)
     }
 
-    suspend fun getUserJobs(id: Id<UserModel>): List<Range> {
-        return jobs.find(Range::owner eq id).toList()
+    suspend fun getUserRanges(id: Id<UserModel>): List<Range> {
+        return ranges.find(Range::owner eq id).toList()
     }
 
-    suspend fun getJob(id: Id<Range>) = jobs.findOneById(ObjectId(id.toString()))
+    suspend fun getRange(id: Id<Range>) = ranges.findOneById(ObjectId(id.toString()))
 
-    suspend fun getAllJobs() = jobs.find().toList()
+    suspend fun getAllRanges() = ranges.find().toList()
 
     suspend fun getOrCreateUser(userId: Int): UserModel {
         return getUser(userId) ?: UserModel(userId).also {
@@ -52,11 +52,11 @@ class SheetTrackDao(kodein: Kodein) {
         users.save(user)
     }
 
-    suspend fun saveJob(range: Range) {
-        jobs.save(range)
+    suspend fun saveRange(range: Range) {
+        ranges.save(range)
     }
 
-    suspend fun deleteJob(rangeId: Id<Range>) {
-        jobs.deleteOneById(ObjectId(rangeId.toString()))
+    suspend fun deleteRange(rangeId: Id<Range>) {
+        ranges.deleteOneById(ObjectId(rangeId.toString()))
     }
 }

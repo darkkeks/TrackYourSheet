@@ -1,23 +1,19 @@
 package ru.darkkeks.trackyoursheet.v2
 
+import com.pengrad.telegrambot.model.Chat
 import org.litote.kmongo.Id
 import ru.darkkeks.trackyoursheet.v2.telegram.*
+import java.time.Duration
 
 class DefaultState : GlobalState() {
     override val handlerList = buildHandlerList {
-        command("list_ranges") {
-            RangeListState().send(this)
-        }
-        command("new_range") {
-            changeGlobalState(NewRangeState())
-        }
-        fallback {
-            MainMenuState().send(this)
-        }
+        command("new_range") { changeGlobalState(NewRangeState()) }
+        command("list_ranges") { RangeListState().send(this) }
+        fallback { MainMenuState().send(this) }
     }
 }
 
-class MainMenuState: MessageState() {
+class MainMenuState : MessageState() {
     class CreateNewRangeButton : TextButton("*️⃣ Нам нужно больше ренжиков")
     class ListRangesButton : TextButton("\uD83D\uDCDD Ренжики мои любимые")
     class SettingsButton : TextButton("⚙️Настроечкикикики")
@@ -37,17 +33,17 @@ class MainMenuState: MessageState() {
 
 
     override val handlerList = buildHandlerList {
-        callback<CreateNewRangeButton> {  }
+        callback<CreateNewRangeButton> { changeGlobalState(NewRangeState()) }
         callback<ListRangesButton> { changeState(RangeListState()) }
     }
 }
 
 class RangeListState : MessageState() {
-    class RangeButton(val range: Id<Range>, label: String) : TextButton(label)
+    class RangeButton(val rangeId: Id<Range>, label: String) : TextButton(label)
 
     override suspend fun draw(context: BaseContext): MessageRender {
-        val user = context.controller.dao.getOrCreateUser(context.userId)
-        val ranges = context.controller.dao.getUserJobs(user._id)
+        val user = context.controller.repository.getOrCreateUser(context.userId)
+        val ranges = context.controller.repository.getUserRanges(user._id)
 
         return if (ranges.isEmpty()) {
             TextRender("У вас нету ренжей \uD83D\uDE1E", buildInlineKeyboard {
@@ -64,11 +60,217 @@ class RangeListState : MessageState() {
     }
 
     override val handlerList = buildHandlerList {
+        callback<RangeButton> { changeState(RangeMenuState(button.rangeId)) }
+        callback<GoBackButton> { changeState(MainMenuState()) }
+    }
+}
+
+class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
+    class PostTargetButton(range: Range) : TextButton("\uD83D\uDCDD Куда постим: ${range.postTarget.name}")
+
+    class DeleteButton : TextButton("\uD83D\uDDD1 Удалить")
+
+    class IntervalButton(range: Range) : TextButton("⏱ Интервал: ${range.interval}")
+
+    class ToggleEnabledButton(range: Range, val target: Boolean = range.enabled.not())
+        : TextButton(if (range.enabled) "✅ Включено" else "❌ Выключено")
+
+    override suspend fun draw(context: BaseContext): MessageRender {
+        val range = context.controller.repository.getRange(rangeId)
+            ?: return TextRender("Ренжик не найден \uD83D\uDE22", buildInlineKeyboard {
+                row(GoBackButton())
+            })
+
+        val spreadsheet = context.controller.sheetApi.getSheet(range.sheet)
+        return TextRender("""
+            Инфа о ренжике:
+            
+            Табличка: [${spreadsheet.properties.title}](${spreadsheet.spreadsheetUrl})
+            Лист: [${range.sheet.sheetName}](${range.sheet.sheetUrl})
+            Ренж: [${range.range}](${range.sheet.urlTo(range.range)})
+        """.trimIndent(), buildInlineKeyboard {
+            add(ToggleEnabledButton(range))
+            add(IntervalButton(range))
+            newRow()
+            add(PostTargetButton(range))
+            add(DeleteButton())
+            newRow()
+            row(GoBackButton())
+        })
+    }
+
+    override val handlerList = buildHandlerList {
+        callback<PostTargetButton> { changeState(SelectPostTargetState(rangeId)) }
+        callback<IntervalButton> { changeState(SelectIntervalState(rangeId)) }
+        callback<DeleteButton> { changeState(ConfirmDeletionState(rangeId)) }
+        callback<GoBackButton> { changeState(RangeListState()) }
+        callback<ToggleEnabledButton> {
+            val range = controller.repository.getRange(rangeId)
+
+            if (range == null) {
+                changeState(NotFoundErrorState())
+            } else {
+                if (range.enabled != button.target) {
+                    val newRange = range.copy(enabled = button.target)
+                    if (newRange.enabled) {
+                        controller.startRange(newRange)
+                    } else {
+                        controller.stopRange(newRange)
+                    }
+                    controller.repository.saveRange(newRange)
+                }
+                changeState(RangeMenuState(rangeId))
+            }
+        }
+    }
+}
+
+class SelectPostTargetState(private var rangeId: Id<Range>) : MessageState() {
+    class PostTargetButton(val target: Chat.Type)
+        : TextButton(if (target == Chat.Type.Private) "Постить сюда" else "Постить в группу/канал")
+
+    override suspend fun draw(context: BaseContext): MessageRender {
+        val range = context.controller.repository.getRange(rangeId)
+            ?: return ChangeStateRender(NotFoundErrorState())
+
+        val target = range.postTarget
+        val name = when (target.type) {
+            Chat.Type.Private -> "сюда"
+            Chat.Type.channel -> ""
+            Chat.Type.group -> ""
+            Chat.Type.supergroup -> ""
+        }
+        return TextRender("""
+            Сейчас сообщения отправляются $name.
+        """.trimIndent(), buildInlineKeyboard {
+            row(GoBackButton())
+            if (target.type != Chat.Type.Private) {
+                row(PostTargetButton(Chat.Type.Private))
+            }
+            row(PostTargetButton(Chat.Type.group))
+        })
+    }
+
+    override val handlerList = buildHandlerList {
+        callback<PostTargetButton> {
+            val range = controller.repository.getRange(rangeId)
+            when {
+                range == null -> changeState(NotFoundErrorState())
+                button.target == Chat.Type.Private -> {
+                    val newTarget = PostTarget.private(userId)
+                    val newRange = range.copy(postTarget = newTarget)
+                    controller.repository.saveRange(newRange)
+                    changeState(RangeMenuState(rangeId))
+                }
+                else -> changeGlobalState(ReceiveGroupState(rangeId))
+            }
+        }
+        callback<GoBackButton> {
+            changeState(RangeMenuState(rangeId))
+        }
+    }
+}
+
+class SelectIntervalState(private var rangeId: Id<Range>) : MessageState() {
+    class IntervalButton(val duration: Duration)
+        : TextButton("\uD83D\uDD53 " + TimeUnits.durationToString(duration))
+
+    override suspend fun draw(context: BaseContext) = TextRender("""
+        Выберите как часто проверять ренж на обновления
+    """.trimIndent(), buildInlineKeyboard {
+        AVAILABLE_OPTIONS.chunked(3).forEach { row ->
+            row.forEach { add(IntervalButton(it)) }
+            newRow()
+        }
+    })
+
+    override val handlerList = buildHandlerList {
+        callback<IntervalButton> {
+            if (button.duration !in AVAILABLE_OPTIONS) {
+                answerCallbackQuery("Данный интервал больше недоступен")
+                changeState(SelectIntervalState(rangeId))
+            } else {
+                val range = controller.repository.getRange(rangeId)
+                if (range == null) {
+                    changeState(NotFoundErrorState())
+                } else {
+                    val seconds = button.duration.toSeconds()
+                    if (range.interval !is PeriodTrackInterval || range.interval.period != seconds) {
+                        val newRange = range.copy(interval = PeriodTrackInterval(seconds))
+                        controller.repository.saveRange(newRange)
+                        controller.stopRange(newRange)
+                        controller.startRange(newRange)
+                    }
+                    changeState(RangeMenuState(rangeId))
+                }
+            }
+        }
+    }
+
+    companion object {
+        private val AVAILABLE_OPTIONS = listOf(
+            Duration.ofSeconds(5),
+            Duration.ofMinutes(1),
+            Duration.ofMinutes(30),
+            Duration.ofHours(1),
+            Duration.ofHours(3),
+            Duration.ofHours(12),
+            Duration.ofDays(1)
+        )
+    }
+}
+
+class ConfirmDeletionState(private var rangeId: Id<Range>) : MessageState() {
+    class ConfirmButton(val confirm: Boolean) : TextButton(if (confirm) "\u2705 Да" else "\u274C Нет")
+
+    override suspend fun draw(context: BaseContext) = TextRender("""
+        Вы уверены, что хотите удалить ренжик?))))))
+    """.trimIndent(), buildInlineKeyboard {
+        add(ConfirmButton(true))
+        add(ConfirmButton(false))
+        newRow()
+        add(GoBackButton())
+    })
+
+    override val handlerList = buildHandlerList {
+        callback<ConfirmButton> {
+            if (button.confirm) {
+                val range = controller.repository.getRange(rangeId)
+                if (range == null) {
+                    changeState(NotFoundErrorState())
+                } else {
+                    controller.stopRange(range)
+                    controller.repository.deleteRange(rangeId)
+                    changeState(RangeListState())
+                }
+            } else {
+                changeState(RangeMenuState(rangeId))
+            }
+        }
+        callback<GoBackButton> {
+            changeState(RangeMenuState(rangeId))
+        }
+    }
+}
+
+class NotFoundErrorState : MessageState() {
+    override suspend fun draw(context: BaseContext) =
+        TextRender("Что-то пошло не так :(", buildInlineKeyboard {
+            row(GoBackButton())
+        })
+
+    override val handlerList = buildHandlerList {
+        anyCallback { changeState(MainMenuState()) }
+    }
+}
+
+class NewRangeState : GlobalState() {
+    override val handlerList = buildHandlerList {
 
     }
 }
 
-class NewRangeState: GlobalState() {
+class ReceiveGroupState(val rangeId: Id<Range>) : GlobalState() {
     override val handlerList = buildHandlerList {
 
     }

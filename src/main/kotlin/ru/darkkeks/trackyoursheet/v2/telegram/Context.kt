@@ -23,7 +23,7 @@ abstract class BaseContext(val user: BotUser, val message: Message, val controll
 
     suspend fun changeGlobalState(state: GlobalState) {
         val newUser = user.copy(model = user.model.copy(state = state))
-        controller.dao.saveUser(newUser.model)
+        controller.repository.saveUser(newUser.model)
         state.handle(EnterStateContext(newUser, message, controller))
     }
 

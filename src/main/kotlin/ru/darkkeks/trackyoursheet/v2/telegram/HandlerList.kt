@@ -79,15 +79,26 @@ class HandlerListBuilder {
 
     fun commandHandler(block: HandlerBlock<CommandContext>) = add(Handler(block))
 
-    fun commandHandler(vararg target: String, block: HandlerBlock<CommandContext>) = add(Handler<CommandContext> {
-        if (command in target) {
+    fun commandHandler(vararg command: String, block: HandlerBlock<CommandContext>) = add(Handler<CommandContext> {
+        if (this.command in command) {
             this.block()
         } else {
             HandlerResultPassThrough()
         }
     })
 
-    fun command(vararg target: String, block: suspend CommandContext.() -> Unit) = commandHandler(*target) {
+    fun command(vararg command: String, block: suspend CommandContext.() -> Unit) = commandHandler(*command) {
+        block()
+        HandlerResultSuccess()
+    }
+
+    fun anyCallbackHandler(block: HandlerBlock<CallbackButtonContext<*>>) {
+        add(Handler<CallbackButtonContext<*>> {
+            block()
+        })
+    }
+
+    fun anyCallback(block: suspend CallbackButtonContext<*>.() -> Unit) = anyCallbackHandler {
         block()
         HandlerResultSuccess()
     }
