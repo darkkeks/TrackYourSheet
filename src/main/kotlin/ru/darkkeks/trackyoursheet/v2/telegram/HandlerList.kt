@@ -1,5 +1,6 @@
 package ru.darkkeks.trackyoursheet.v2.telegram
 
+import com.fasterxml.jackson.annotation.JsonIgnoreType
 import kotlin.reflect.KClass
 import kotlin.reflect.full.cast
 
@@ -9,8 +10,6 @@ abstract class HandlerResult
 class HandlerResultPassThrough : HandlerResult()
 
 class HandlerResultSuccess : HandlerResult()
-
-class HandlerResultChangeState : HandlerResult()
 
 
 typealias HandlerBlock<C> = suspend C.() -> HandlerResult
@@ -76,6 +75,11 @@ class HandlerListBuilder {
     }
 
     fun textHandler(block: HandlerBlock<NewMessageContext>)= add(Handler(block))
+
+    fun text(block: suspend NewMessageContext.() -> Unit) = textHandler {
+        block()
+        HandlerResultSuccess()
+    }
 
     fun commandHandler(block: HandlerBlock<CommandContext>) = add(Handler(block))
 

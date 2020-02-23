@@ -2,6 +2,8 @@
 .gradle
 build
 logs
+out
+.kotlintest
 
 local.env
 credentials.json

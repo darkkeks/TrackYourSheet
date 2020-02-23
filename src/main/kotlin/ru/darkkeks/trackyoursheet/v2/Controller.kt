@@ -1,6 +1,8 @@
 package ru.darkkeks.trackyoursheet.v2
 
 import com.pengrad.telegrambot.request.AnswerCallbackQuery
+import com.pengrad.telegrambot.request.GetMe
+import com.pengrad.telegrambot.response.GetMeResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.consumeEach
@@ -26,8 +28,15 @@ class Controller(kodein: Kodein) {
 
     val scope = CoroutineScope(SupervisorJob())
 
+    lateinit var me: GetMeResponse
+
     suspend fun start() {
         logger.info("Starting bot")
+
+        preloadJobs()
+
+        me = bot.execute(GetMe())
+
         bot.run().collect { update ->
             println(update)
 
@@ -69,9 +78,15 @@ class Controller(kodein: Kodein) {
                             return@launch
                         }
 
+                        val actualState = if (state == null || state is NullState) {
+                            user.state
+                        } else {
+                            state
+                        }
+
                         val context = CallbackButtonContext(button, query, botUser, this@Controller)
 
-                        val result = (state ?: user.state).handle(context)
+                        val result = actualState.handle(context)
                         if (result is HandlerResultSuccess) {
                             if (!context.answered) {
                                 context.answerCallbackQuery()
@@ -81,6 +96,14 @@ class Controller(kodein: Kodein) {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private suspend fun preloadJobs() {
+        repository.getAllRanges().forEach { range ->
+            if (range.enabled) {
+                startRange(range)
             }
         }
     }
@@ -105,37 +128,36 @@ class Controller(kodein: Kodein) {
         if (event is CellEvent) {
             val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell + 1)})"
             when (event) {
-                // TODO
-//                is AddTextEvent -> bot.sendMessage(targetChatId, """
-//                    Добавлено значение в $cellString: ```
-//                    ${event.text}```
-//                """.trimIndent())
-//                is ModifyTextEvent -> bot.sendMessage(targetChatId, """
-//                    Изменено значение в $cellString:
-//                    Старое:```
-//                    ${event.oldText}```
-//                    Новое:```
-//                    ${event.newText}```
-//                """.trimIndent())
-//                is RemoveTextEvent -> bot.sendMessage(targetChatId, """
-//                    Удалено значение в $cellString:```
-//                    ${event.text}```
-//                """.trimIndent())
-//                is AddNoteEvent -> bot.sendMessage(targetChatId, """
-//                    Добавлена заметка в $cellString: ```
-//                    ${event.note}```
-//                """.trimIndent())
-//                is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
-//                    Изменена заметка в $cellString:
-//                    Старая:```
-//                    ${event.oldNote}```
-//                    Новая:```
-//                    ${event.newNote}```
-//                """.trimIndent())
-//                is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
-//                    Удалена заметка в $cellString: ```
-//                    ${event.note}```
-//                """.trimIndent())
+                is AddTextEvent -> bot.sendMessage(targetChatId, """
+                    Добавлено значение в $cellString: ```
+                    ${event.text}```
+                """.trimIndent())
+                is ModifyTextEvent -> bot.sendMessage(targetChatId, """
+                    Изменено значение в $cellString:
+                    Старое:```
+                    ${event.oldText}```
+                    Новое:```
+                    ${event.newText}```
+                """.trimIndent())
+                is RemoveTextEvent -> bot.sendMessage(targetChatId, """
+                    Удалено значение в $cellString:```
+                    ${event.text}```
+                """.trimIndent())
+                is AddNoteEvent -> bot.sendMessage(targetChatId, """
+                    Добавлена заметка в $cellString: ```
+                    ${event.note}```
+                """.trimIndent())
+                is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
+                    Изменена заметка в $cellString:
+                    Старая:```
+                    ${event.oldNote}```
+                    Новая:```
+                    ${event.newNote}```
+                """.trimIndent())
+                is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
+                    Удалена заметка в $cellString: ```
+                    ${event.note}```
+                """.trimIndent())
             }
         }
     }

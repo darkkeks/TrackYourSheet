@@ -1,11 +1,16 @@
 package ru.darkkeks.trackyoursheet.v2.telegram
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+
+@JsonIgnoreProperties("handlerList")
 abstract class State {
     abstract val handlerList: HandlerList
 
     suspend fun <T : BaseContext> handle(context: T) = handlerList.handle(context)
 }
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 abstract class GlobalState : State()
 
 abstract class MessageState : State(), CallbackSerializable {
@@ -21,4 +26,11 @@ abstract class MessageState : State(), CallbackSerializable {
             }
         }
     }
+}
+
+// Костыль для глобальных кнопок
+class NullState : MessageState() {
+    override suspend fun draw(context: BaseContext) = TextRender("LUL")
+
+    override val handlerList = buildHandlerList {}
 }

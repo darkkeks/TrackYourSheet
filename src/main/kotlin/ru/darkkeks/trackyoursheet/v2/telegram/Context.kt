@@ -1,8 +1,10 @@
 package ru.darkkeks.trackyoursheet.v2.telegram
 
 import com.pengrad.telegrambot.model.CallbackQuery
+import com.pengrad.telegrambot.model.Chat
 import com.pengrad.telegrambot.model.Message
 import com.pengrad.telegrambot.model.User
+import com.pengrad.telegrambot.model.request.ForceReply
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup
 import com.pengrad.telegrambot.model.request.Keyboard
 import com.pengrad.telegrambot.model.request.ParseMode
@@ -41,6 +43,35 @@ abstract class BaseContext(val user: BotUser, val message: Message, val controll
         }
         return controller.bot.execute(request)
     }
+
+    suspend fun forceReply(text: String,
+                           disableWebPagePreview: Boolean = false,
+                           replyMarkup: Keyboard? = null,
+                           parseMode: ParseMode? = ParseMode.Markdown,
+                           disableNotification: Boolean = false
+    ): SendResponse {
+        val chat = message.chat()
+        val request = SendMessage(chat.id(), text)
+            .disableWebPagePreview(disableWebPagePreview)
+            .parseMode(parseMode)
+            .disableNotification(disableNotification)
+
+        if (replyMarkup != null) {
+            request.replyMarkup(replyMarkup)
+        }
+
+        if (!isPrivate() && message.from().id() == userId) {
+            request.replyToMessageId(message.messageId())
+            if (replyMarkup == null) {
+                request.replyMarkup(ForceReply(true))
+            }
+        }
+
+        return controller.bot.execute(request)
+    }
+
+    private fun isPrivate() = message.chat().type() == Chat.Type.Private
+
 }
 
 class EnterStateContext(user: BotUser, message: Message, controller: Controller) : BaseContext(user, message, controller)

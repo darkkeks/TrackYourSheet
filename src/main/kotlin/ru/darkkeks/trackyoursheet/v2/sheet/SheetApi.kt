@@ -73,7 +73,7 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
          *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8#gid=1697515667
          *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8
          *
-         * First group in match is spreadsheet id. Second one (if present) is arguments without #, maybe blank.
+         * First group in match is spreadsheet id. Second one (if present) is arguments without #, may be blank.
          */
         private val URL_PATTERN =
             """(?:https?://)?(?:www\.)?docs\.google\.com/spreadsheets/d/([a-zA-Z\d-_]+)(?:/edit)?(?:\?[^#]*)?(?:#(.+))?""".toRegex()

@@ -44,7 +44,12 @@ class Registry {
     val buttons = SerializableRegistry<CallbackButton>()
 
     init {
-        buttons.register(0x00) { GoBackButton() }
+
+        states.register(0x00) { NullState() }
+        buttons.register(0x00) { NewRangeState.SheetSelectButton(it.popInt(), "") }
+        buttons.register(0x01) { NewRangeState.CancelButton() }
+
+        buttons.register(0x7F) { GoBackButton() }
 
         states.register(0x01) { MainMenuState() }
         buttons.register(0x10) { MainMenuState.CreateNewRangeButton() }
