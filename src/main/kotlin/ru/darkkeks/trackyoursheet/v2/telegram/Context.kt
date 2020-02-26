@@ -23,9 +23,10 @@ abstract class BaseContext(val user: BotUser, val message: Message, val controll
 
     val userId: Int get() = user.telegramUser.id()
 
-    suspend fun changeGlobalState(state: GlobalState) {
+    suspend fun changeGlobalState(state: GlobalState, noInit: Boolean = false) {
         val newUser = user.copy(model = user.model.copy(state = state))
         controller.repository.saveUser(newUser.model)
+        if (noInit) return
         state.handle(EnterStateContext(newUser, message, controller))
     }
 

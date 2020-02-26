@@ -9,7 +9,7 @@ fun List<List<CallbackButton>>.getMarkup(state: MessageState, registry: Registry
         registry.states.write(state, buffer)
         registry.buttons.write(button, buffer)
         val inlineButton = button.toInlineButton()
-        inlineButton.callbackData(buffer.toString())
+        inlineButton.callbackData(buffer.serialize())
     }.toTypedArray()
 }.toTypedArray())
 

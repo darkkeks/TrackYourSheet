@@ -40,8 +40,12 @@ class ButtonBuffer(value: String = "") {
         return bytes.subList(bytes.size - count, bytes.size).reversed()
     }
 
-    override fun toString(): String {
+    fun serialize(): String {
         return Companion.toString(bytes)
+    }
+
+    override fun toString(): String {
+        return bytes.joinToString(prefix = "[", postfix = "]")
     }
 
     companion object {

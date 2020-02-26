@@ -6,8 +6,8 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.sheets.v4.Sheets
+import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
-import com.mongodb.MongoCredential
 import org.kodein.di.Kodein
 import org.kodein.di.generic.bind
 import org.kodein.di.generic.instance
@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory
 import ru.darkkeks.trackyoursheet.v2.sheet.*
 
 val BOT_TOKEN: String = System.getenv("BOT_TOKEN") ?: ""
+val MONGO_CONN: String = System.getenv("MONGO_CONN") ?: "mongodb://root:root@localhost/admin"
 
 val kodein = Kodein {
     bind<NetHttpTransport>() with singleton { GoogleNetHttpTransport.newTrustedTransport() }
@@ -40,11 +41,12 @@ val kodein = Kodein {
     }
 
     bind<CoroutineDatabase>() with singleton {
-        val credential = MongoCredential.createCredential("root", "admin", "root".toCharArray())
+        val connectionString = ConnectionString(MONGO_CONN)
         val settings = MongoClientSettings.builder()
-            .credential(credential).build()
-        KMongo.createClient(settings).coroutine
-            .getDatabase("track_your_sheet")
+            .applyConnectionString(connectionString)
+            .build()
+        val database = connectionString.database ?: throw IllegalStateException("No db in connection string")
+        KMongo.createClient(settings).coroutine.getDatabase(database)
     }
 
     bind<SheetTrackRepository>() with singleton {

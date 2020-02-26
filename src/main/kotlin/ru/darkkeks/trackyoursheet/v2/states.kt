@@ -88,6 +88,8 @@ class RangeMenuState(private val rangeId: Id<Range>) : MessageState() {
         override fun serialize(buffer: ButtonBuffer) = buffer.pushBoolean(target)
     }
 
+    override fun serialize(buffer: ButtonBuffer) = buffer.pushId(rangeId)
+
     override suspend fun draw(context: BaseContext): MessageRender {
         val range = context.controller.repository.getRange(rangeId)
             ?: return TextRender("Ренжик не найден \uD83D\uDE22", buildInlineKeyboard {
@@ -145,6 +147,8 @@ class SelectPostTargetState(private var rangeId: Id<Range>) : MessageState() {
         override fun serialize(buffer: ButtonBuffer) = buffer.pushByte(target.ordinal.toByte())
     }
 
+    override fun serialize(buffer: ButtonBuffer) = buffer.pushId(rangeId)
+
     override suspend fun draw(context: BaseContext): MessageRender {
         val range = context.controller.repository.getRange(rangeId)
             ?: return ChangeStateRender(NotFoundErrorState())
@@ -193,6 +197,8 @@ class SelectIntervalState(private var rangeId: Id<Range>) : MessageState() {
 
         override fun serialize(buffer: ButtonBuffer) = buffer.pushInt(duration.toSeconds().toInt())
     }
+
+    override fun serialize(buffer: ButtonBuffer) = buffer.pushId(rangeId)
 
     override suspend fun draw(context: BaseContext) = TextRender("""
         Выберите как часто проверять ренж на обновления
@@ -243,6 +249,8 @@ class ConfirmDeletionState(private var rangeId: Id<Range>) : MessageState() {
     class ConfirmButton(val confirm: Boolean) : TextButton(if (confirm) "\u2705 Да" else "\u274C Нет") {
         override fun serialize(buffer: ButtonBuffer) = buffer.pushBoolean(confirm)
     }
+
+    override fun serialize(buffer: ButtonBuffer) = buffer.pushId(rangeId)
 
     override suspend fun draw(context: BaseContext) = TextRender("""
         Вы уверены, что хотите удалить ренжик?))))))
@@ -423,7 +431,7 @@ class NewRangeState : GlobalState() {
         """.trimIndent())
 
         RangeMenuState(rangeJob._id).send(context)
-        context.changeGlobalState(DefaultState())
+        context.changeGlobalState(DefaultState(), noInit = true)
     }
 
     private fun createSheetSelectKeyboard(sheets: List<Sheet>, context: BaseContext) = buildInlineKeyboard {
@@ -469,7 +477,7 @@ class ReceiveGroupState(val rangeId: Id<Range>) : GlobalState() {
 
                 // "-1234" => -1234
                 // "@username" or "username" => "@username"
-                text.toIntOrNull() ?: "@" + text.dropWhile { it == '@' }
+                text.toLongOrNull() ?: "@" + text.dropWhile { it == '@' }
             }
 
             selectChatId(chatId, this)

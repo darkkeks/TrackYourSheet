@@ -103,7 +103,7 @@ internal class ButtonBufferTest : AnnotationSpec() {
     }
 
     private fun passThroughString(buffer: ButtonBuffer): ButtonBuffer {
-        return ButtonBuffer(buffer.toString())
+        return ButtonBuffer(buffer.serialize())
     }
 
 }

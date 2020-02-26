@@ -10,7 +10,7 @@ group = "ru.darkkeks"
 version = "1.0-SNAPSHOT"
 
 application {
-    mainClassName = "ru.darkkeks.trackyoursheet.ZhopKt"
+    mainClassName = "ru.darkkeks.trackyoursheet.v2.MainKt"
 }
 
 repositories {
