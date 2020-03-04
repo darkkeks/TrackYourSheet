@@ -61,6 +61,8 @@ class Controller(kodein: Kodein) {
                         if (result !is HandlerResultSuccess) {
                             context.send("Failed to handle message :(")
                         }
+
+                        context.saveUser()
                     }
                     update.callbackQuery() != null -> {
                         val query = update.callbackQuery()
@@ -94,6 +96,8 @@ class Controller(kodein: Kodein) {
                         } else {
                             context.answerCallbackQuery("Failed to handle button pressed :(")
                         }
+
+                        context.saveUser()
                     }
                 }
             }

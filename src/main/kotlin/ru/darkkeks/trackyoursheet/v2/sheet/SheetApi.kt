@@ -75,6 +75,7 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
          *
          * First group in match is spreadsheet id. Second one (if present) is arguments without #, may be blank.
          */
+        // TODO Заменить бы на URI дааааа
         private val URL_PATTERN =
             """(?:https?://)?(?:www\.)?docs\.google\.com/spreadsheets/d/([a-zA-Z\d-_]+)(?:/edit)?(?:\?[^#]*)?(?:#(.+))?""".toRegex()
 

@@ -17,17 +17,21 @@ import ru.darkkeks.trackyoursheet.v2.Controller
 import ru.darkkeks.trackyoursheet.v2.UserModel
 
 
-data class BotUser(val telegramUser: User, val model: UserModel)
+class BotUser(val telegramUser: User, var model: UserModel)
 
 abstract class BaseContext(val user: BotUser, val message: Message, val controller: Controller) {
 
     val userId: Int get() = user.telegramUser.id()
 
     suspend fun changeGlobalState(state: GlobalState, noInit: Boolean = false) {
-        val newUser = user.copy(model = user.model.copy(state = state))
-        controller.repository.saveUser(newUser.model)
+        user.model = user.model.copy(state = state)
         if (noInit) return
-        state.handle(EnterStateContext(newUser, message, controller))
+        val context = EnterStateContext(user, message, controller)
+        state.handle(context)
+    }
+
+    suspend fun saveUser() {
+        controller.repository.saveUser(user.model)
     }
 
     suspend fun send(text: String,
