@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.pengrad.telegrambot.model.Chat
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
+import ru.darkkeks.trackyoursheet.v2.logic.DefaultState
 import ru.darkkeks.trackyoursheet.v2.sheet.CellRange
 import ru.darkkeks.trackyoursheet.v2.sheet.SheetData
 import ru.darkkeks.trackyoursheet.v2.telegram.GlobalState
@@ -34,7 +35,6 @@ data class Range(
     val postTarget: PostTarget,
     val _id: Id<Range> = newId()
 )
-
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS)
 abstract class TrackInterval

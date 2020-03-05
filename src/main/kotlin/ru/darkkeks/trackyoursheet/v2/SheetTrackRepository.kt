@@ -44,10 +44,6 @@ class SheetTrackRepository(kodein: Kodein) {
         return users.findOne(UserModel::userId eq userId)
     }
 
-    suspend fun getUserById(id: Id<UserModel>): UserModel? {
-        return users.findOneById(ObjectId(id.toString()))
-    }
-
     suspend fun saveUser(user: UserModel) {
         users.save(user)
     }

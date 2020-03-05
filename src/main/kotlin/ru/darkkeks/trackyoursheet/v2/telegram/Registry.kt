@@ -2,6 +2,7 @@ package ru.darkkeks.trackyoursheet.v2.telegram
 
 import com.pengrad.telegrambot.model.Chat
 import ru.darkkeks.trackyoursheet.v2.*
+import ru.darkkeks.trackyoursheet.v2.logic.*
 import java.time.Duration
 import kotlin.reflect.KClass
 

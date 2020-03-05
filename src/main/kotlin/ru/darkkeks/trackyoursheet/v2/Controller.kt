@@ -17,28 +17,23 @@ import ru.darkkeks.trackyoursheet.v2.telegram.*
 class Controller(kodein: Kodein) {
 
     val bot = CoroutineBot()
-
     val sheetApi: SheetApi by kodein.instance()
-
     val repository: SheetTrackRepository by kodein.instance()
-
     val registry = Registry()
 
-    val tracker = SheetTracker(kodein)
-
-    val scope = CoroutineScope(SupervisorJob())
+    private val tracker = SheetTracker(kodein)
+    private val scope = CoroutineScope(SupervisorJob())
 
     lateinit var me: GetMeResponse
 
     suspend fun start() {
         logger.info("Starting bot")
+        me = bot.execute(GetMe())
 
         preloadJobs()
 
-        me = bot.execute(GetMe())
-
         bot.run().collect { update ->
-            println(update)
+            logger.info("{}", update)
 
             scope.launch {
                 when {
@@ -165,7 +160,6 @@ class Controller(kodein: Kodein) {
             }
         }
     }
-
 
     companion object {
         val logger = createLogger<Controller>()
