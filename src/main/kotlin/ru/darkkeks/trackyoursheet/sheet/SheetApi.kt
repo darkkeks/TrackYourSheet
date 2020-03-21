@@ -145,15 +145,27 @@ data class Cell(val row: Int, val column: Int) {
             return result
         }
 
+        const val NOT_SET = -1
 
-        val CELL_PATTERN = """([A-Z]+)(\d+)""".toRegex()
+        val ROW_PATTERN = """[1-9]\d*""".toRegex()
+        val COLUMN_PATTERN = """[A-Z]+""".toRegex()
 
-        fun fromString(value: String): Cell {
-            val match = CELL_PATTERN.find(value)
-            require(match != null)
+        val CELL_PATTERN = """($ROW_PATTERN)($COLUMN_PATTERN)""".toRegex()
 
-            val (column, row) = match.groupValues.subList(1, 3)
-            return Cell(row.toInt(), sheetStringToIndex(column))
+        fun fromString(value: String): Cell? {
+            return when {
+                value matches CELL_PATTERN -> {
+                    val (col, row) = CELL_PATTERN.find(value)!!.groupValues.drop(1)
+                    Cell(row.toInt(), sheetStringToIndex(col))
+                }
+                value matches ROW_PATTERN -> {
+                    Cell(value.toInt(), NOT_SET)
+                }
+                value matches COLUMN_PATTERN -> {
+                    Cell(NOT_SET, sheetStringToIndex(value))
+                }
+                else -> null
+            }
         }
     }
 }
@@ -178,18 +190,30 @@ class CellRange(from: Cell, to: Cell) {
     override fun toString() = "$from:$to"
 
     companion object {
-        val RANGE_PATTERN = """${Cell.CELL_PATTERN}:${Cell.CELL_PATTERN}""".toRegex()
+        private val RANGE_PATTERN = listOf(
+            "${Cell.CELL_PATTERN}:${Cell.CELL_PATTERN}",
+            "${Cell.ROW_PATTERN}:${Cell.ROW_PATTERN}",
+            "${Cell.COLUMN_PATTERN}:${Cell.COLUMN_PATTERN}",
+            "${Cell.CELL_PATTERN}",
+            "${Cell.ROW_PATTERN}",
+            "${Cell.COLUMN_PATTERN}"
+        ).joinToString("|").toRegex()
 
-        fun isRange(value: String) = value matches Cell.CELL_PATTERN || value matches RANGE_PATTERN
+        fun isRange(value: String) = value matches RANGE_PATTERN
 
         fun fromString(value: String): CellRange {
             require(isRange(value))
 
-            return if (value matches RANGE_PATTERN) {
-                val (a, b) = value.split(":")
-                CellRange(Cell.fromString(a), Cell.fromString(b))
+            return if (value.contains(":")) {
+                val (left, right) = value.split(":")
+                val from = Cell.fromString(left)
+                val to = Cell.fromString(right)
+
+                require(from != null && to != null)
+                CellRange(from, to)
             } else {
                 val cell = Cell.fromString(value)
+                require(cell != null)
                 CellRange(cell, cell)
             }
         }
