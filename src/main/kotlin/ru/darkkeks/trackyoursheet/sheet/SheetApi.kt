@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.kodein.di.Kodein
 import org.kodein.di.generic.instance
+import java.net.URI
+import java.net.URISyntaxException
 import kotlin.math.max
 import kotlin.math.min
 
@@ -62,22 +64,8 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
     fun urlTo(range: CellRange) = "${sheetUrl}&range=$range"
 
     companion object {
-        /**
-         * Matches google docs urls in this forms:
-         *  - https://docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit#gid=1697515667
-         *  - http://docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit#gid=1697515667
-         *  - www.docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit#gid=1697515667
-         *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit#gid=1697515667&range=123
-         *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit#
-         *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8/edit
-         *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8#gid=1697515667
-         *  - docs.google.com/spreadsheets/d/1yrRO2hTjC13aAP4VYPO_NgyAp-VE9hKnog1EQ0uyBk8
-         *
-         * First group in match is spreadsheet id. Second one (if present) is arguments without #, may be blank.
-         */
-        // TODO Заменить бы на URI дааааа
-        private val URL_PATTERN =
-            """(?:https?://)?(?:www\.)?docs\.google\.com/spreadsheets/d/([a-zA-Z\d-_]+)(?:/edit)?(?:\?[^#]*)?(?:#(.+))?""".toRegex()
+        private val DOMAIN_PATTERN = """(www\.)?docs\.google\.com""".toRegex()
+        private val PATH_PATTERN = """/spreadsheets/d/([a-zA-Z\d-_]+)/?.*?""".toRegex()
 
         data class SheetUrlMatchResult(val id: String, val arguments: Map<String, String> = emptyMap())
 
@@ -85,25 +73,27 @@ data class SheetData(val id: String, val sheetId: Int, val sheetName: String = "
          * Extracts spreadsheet id and url arguments
          * @return Pair of spreadsheet id and map of arguments, or null if couldn't match
          */
-        fun fromUrl(url: String): SheetUrlMatchResult? {
-            val match = URL_PATTERN.matchEntire(url) ?: return null
-            val id = match.groupValues[1]
-            val argumentString = match.groups[2]?.value
+        fun fromUrl(string: String): SheetUrlMatchResult? {
+            try {
+                var processed = string
+                if (!string.startsWith("http")) processed = "https://$processed"
 
-            if (argumentString?.isEmpty() != false) {
-                return SheetUrlMatchResult(id)
+                val url = URI(processed)
+                if (!DOMAIN_PATTERN.matches(url.host)) return null
+                val path = PATH_PATTERN.matchEntire(url.path) ?: return null
+                val id = path.groupValues[1]
+
+                val hash: String? = url.fragment
+                val parts = if (hash == null || hash.isEmpty()) listOf() else hash.split("&")
+                val args = parts.map {
+                    val x = it.split('=', limit = 2)
+                    if (x.size == 2) x[0] to x[1] else x[0] to ""
+                }.toMap()
+
+                return SheetUrlMatchResult(id, args)
+            } catch (e: URISyntaxException) {
+                return null
             }
-
-            val arguments = argumentString.split("&").map {
-                val parts = it.split('=', limit = 2)
-                if (parts.size == 2) {
-                    parts[0] to parts[1]
-                } else {
-                    parts[0] to ""
-                }
-            }.toMap()
-
-            return SheetUrlMatchResult(id, arguments)
         }
     }
 }
