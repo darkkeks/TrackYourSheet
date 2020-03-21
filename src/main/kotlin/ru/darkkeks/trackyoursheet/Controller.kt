@@ -124,41 +124,53 @@ class Controller(kodein: Kodein) {
 
         val targetChatId = job.postTarget.chatId
 
-        if (event is CellEvent) {
-            val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell + 1)})"
-            when (event) {
-                is AddTextEvent -> bot.sendMessage(targetChatId, """
-                    Добавлено значение в $cellString: ```
-                    ${event.text}```
-                """.trimIndent())
-                is ModifyTextEvent -> bot.sendMessage(targetChatId, """
-                    Изменено значение в $cellString:
-                    Старое:```
-                    ${event.oldText}```
-                    Новое:```
-                    ${event.newText}```
-                """.trimIndent())
-                is RemoveTextEvent -> bot.sendMessage(targetChatId, """
-                    Удалено значение в $cellString:```
-                    ${event.text}```
-                """.trimIndent())
-                is AddNoteEvent -> bot.sendMessage(targetChatId, """
-                    Добавлена заметка в $cellString: ```
-                    ${event.note}```
-                """.trimIndent())
-                is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
-                    Изменена заметка в $cellString:
-                    Старая:```
-                    ${event.oldNote}```
-                    Новая:```
-                    ${event.newNote}```
-                """.trimIndent())
-                is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
-                    Удалена заметка в $cellString: ```
-                    ${event.note}```
+        if (event is SheetEvent) {
+            if (event is CellEvent) {
+                val cellString = "[клетке ${event.cell + 1}](${job.sheet.urlTo(event.cell + 1)})"
+                when (event) {
+                    is AddTextEvent -> bot.sendMessage(targetChatId, """
+                        Добавлено значение в $cellString: ```
+                        ${event.text}```
+                    """.trimIndent())
+                    is ModifyTextEvent -> bot.sendMessage(targetChatId, """
+                        Изменено значение в $cellString:
+                        Старое:```
+                        ${event.oldText}```
+                        Новое:```
+                        ${event.newText}```
+                    """.trimIndent())
+                    is RemoveTextEvent -> bot.sendMessage(targetChatId, """
+                        Удалено значение в $cellString:```
+                        ${event.text}```
+                    """.trimIndent())
+                    is AddNoteEvent -> bot.sendMessage(targetChatId, """
+                        Добавлена заметка в $cellString: ```
+                        ${event.note}```
+                    """.trimIndent())
+                    is ModifyNoteEvent -> bot.sendMessage(targetChatId, """
+                        Изменена заметка в $cellString:
+                        Старая:```
+                        ${event.oldNote}```
+                        Новая:```
+                        ${event.newNote}```
+                    """.trimIndent())
+                    is RemoveNoteEvent -> bot.sendMessage(targetChatId, """
+                        Удалена заметка в $cellString: ```
+                        ${event.note}```
+                    """.trimIndent())
+                }
+            }
+
+            if (event is DimensionsChangeEvent) {
+                val from = "${event.old.first}x${event.old.second}"
+                val to = "${event.new.first}x${event.new.second}"
+                bot.sendMessage(targetChatId, """
+                    Изменились размеры диапазона, лучше посмотреть в [табличку](${job.sheet.url}) глазами что произошло 👀
+                    `$from` → `$to`
                 """.trimIndent())
             }
         }
+
     }
 
     companion object {

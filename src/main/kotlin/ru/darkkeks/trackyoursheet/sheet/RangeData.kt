@@ -53,4 +53,9 @@ class RangeData {
         }
         notes = mutableNotes
     }
+
+    val dimensions get() = when {
+        data.isNotEmpty() -> data.size to data[0].size
+        else -> 0 to 0
+    }
 }

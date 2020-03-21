@@ -7,10 +7,14 @@ typealias EventListener = (DataEvent) -> Unit
 
 abstract class DataEvent
 
-abstract class CellEvent(
-    val sheet: Sheet,
-    val cell: Cell
+abstract class SheetEvent(
+    val sheet: Sheet
 ) : DataEvent()
+
+abstract class CellEvent(
+    sheet: Sheet,
+    val cell: Cell
+) : SheetEvent(sheet)
 
 class AddTextEvent(
     sheet: Sheet,
@@ -53,3 +57,9 @@ class RemoveNoteEvent(
 data class InitialDataLoadEvent(
     val spreadsheet: Spreadsheet
 ) : DataEvent()
+
+class DimensionsChangeEvent(
+    sheet: Sheet,
+    val old: Pair<Int, Int>,
+    val new: Pair<Int, Int>
+): SheetEvent(sheet)

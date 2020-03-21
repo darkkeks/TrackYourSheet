@@ -140,7 +140,7 @@ data class Cell(val row: Int, val column: Int) {
         val ROW_PATTERN = """[1-9]\d*""".toRegex()
         val COLUMN_PATTERN = """[A-Z]+""".toRegex()
 
-        val CELL_PATTERN = """($ROW_PATTERN)($COLUMN_PATTERN)""".toRegex()
+        val CELL_PATTERN = """($COLUMN_PATTERN)($ROW_PATTERN)""".toRegex()
 
         fun fromString(value: String): Cell? {
             return when {

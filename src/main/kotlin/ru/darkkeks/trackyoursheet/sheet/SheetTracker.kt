@@ -15,7 +15,7 @@ import ru.darkkeks.trackyoursheet.buildList
 
 class SheetTracker(kodein: Kodein) {
 
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob())
 
     private val sheetApi: SheetApi by kodein.instance()
 

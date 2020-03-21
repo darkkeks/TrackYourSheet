@@ -1,25 +1,30 @@
 package ru.darkkeks.trackyoursheet.sheet
 
 import com.google.api.services.sheets.v4.model.Sheet
-import kotlin.math.max
 
 class DataCompareService {
     fun compare(sheet: Sheet, old: RangeData, new: RangeData, block: EventListener) {
         require(old.start == new.start)
-        require(old.data.size == new.data.size)
 
-        for (i in new.data.indices) {
+        val oDim = old.dimensions
+        val nDim = new.dimensions
+
+        if (oDim != nDim) {
+            block(DimensionsChangeEvent(sheet, oDim, nDim))
+        }
+
+        for (i in new.data.indices.intersect(old.data.indices)) {
             val oRow = old.data[i]
             val nRow = new.data[i]
 
-            val columns = max(oRow.size, nRow.size)
-            for (j in 0 until columns) {
+            for (j in oRow.indices.intersect(nRow.indices)) {
                 if (oRow[j] != nRow[j]) {
-                    block(when {
+                    val event = when {
                         oRow[j].isEmpty() -> AddTextEvent(sheet, new.start + Cell(i, j), nRow[j])
                         nRow[j].isEmpty() -> RemoveTextEvent(sheet, new.start + Cell(i, j), oRow[j])
                         else -> ModifyTextEvent(sheet, new.start + Cell(i, j), oRow[j], nRow[j])
-                    })
+                    }
+                    block(event)
                 }
             }
         }
